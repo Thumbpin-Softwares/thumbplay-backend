@@ -65,7 +65,8 @@ export const env = {
   // First entry is the post-OAuth redirect target — Google's callback has no
   // Origin header to route by, so we redirect to a single primary frontend.
   get frontendUrl(): string {
-    return this.frontendUrls[0];
+    // requiredList() throws if empty, so this is always defined.
+    return this.frontendUrls[0]!;
   },
 
   adminEmail: required('ADMIN_EMAIL'),
