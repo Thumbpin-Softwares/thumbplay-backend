@@ -12,6 +12,18 @@ function optional(name: string, fallback: string): string {
   return process.env[name] || fallback;
 }
 
+function requiredList(name: string): string[] {
+  const value = required(name);
+  const list = value
+    .split(',')
+    .map((entry) => entry.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  if (list.length === 0) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return list;
+}
+
 const nodeEnv = optional('NODE_ENV', 'development');
 
 // This backend's own publicly-reachable base URL (e.g. https://api.thumbpin.in,
@@ -47,9 +59,14 @@ export const env = {
   // explicitly if it needs to differ from this backend's own public URL.
   googleCallbackUrl: optional('GOOGLE_CALLBACK_URL', `${backendPublicUrl}/api/v1/auth/google/callback`),
 
-  // CORS origin (credentials:true requires an explicit origin, not "*") and
-  // the post-OAuth redirect target.
-  frontendUrl: required('FRONTEND_URL'),
+  // CORS allow-list (credentials:true requires an explicit origin, not "*").
+  // Comma-separated, e.g. FRONTEND_URL=http://localhost:3000,https://ai.thumbpin.in
+  frontendUrls: requiredList('FRONTEND_URL'),
+  // First entry is the post-OAuth redirect target — Google's callback has no
+  // Origin header to route by, so we redirect to a single primary frontend.
+  get frontendUrl(): string {
+    return this.frontendUrls[0];
+  },
 
   adminEmail: required('ADMIN_EMAIL'),
   // bcrypt hash only — no plaintext admin-password fallback exists in this backend.

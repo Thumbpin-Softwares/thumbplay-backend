@@ -10,8 +10,20 @@ const app: Application = express();
 
 // Core Global Middlewares
 // credentials:true requires an explicit origin (not "*") for the browser to
-// accept the cookie the auth module sets.
-app.use(cors({ origin: env.frontendUrl, credentials: true }));
+// accept the cookie the auth module sets, so we echo back the request's
+// origin only when it's in the FRONTEND_URL allow-list.
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || env.frontendUrls.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
