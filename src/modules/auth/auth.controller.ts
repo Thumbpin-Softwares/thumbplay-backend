@@ -7,9 +7,16 @@ import {
   getGoogleAuthUrl,
   completeGoogleSignIn,
 } from './auth.service';
-import { signUserToken, setAuthCookie, clearAuthCookie } from './auth.utils';
+import {
+  signUserToken,
+  setAuthCookie,
+  clearAuthCookie,
+  createOneTimeCode,
+  consumeOneTimeCode,
+} from './auth.utils';
 import { AuthedRequest } from './auth.types';
 import { env } from '../../config/env';
+import { User } from '../user/user.model';
 
 export async function register(req: Request, res: Response): Promise<void> {
   const { email, password, name } = req.body ?? {};
@@ -78,10 +85,41 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
   try {
     const user = await completeGoogleSignIn(code);
     const token = signUserToken(user._id.toString());
+    // Set for direct backend calls (e.g. this backend's own /auth/me), but
+    // the frontend lives on a different domain and will never see this
+    // cookie — it exchanges the one-time code below for its own instead.
     setAuthCookie(res, token);
-    res.redirect(`${env.frontendUrl}/dashboard`);
+    const handoffCode = createOneTimeCode(user._id.toString());
+    res.redirect(`${env.frontendUrl}/auth/callback?code=${handoffCode}`);
   } catch (error) {
     console.error('[auth] Google sign-in failed:', error);
     res.redirect(`${env.frontendUrl}/auth/login?error=google_oauth_failed`);
   }
+}
+
+// POST /auth/exchange — called server-to-server by the frontend's own
+// backend (not the browser) to trade a one-time handoff code for a fresh
+// token + user, so the frontend can mint its own same-domain cookie.
+export async function exchangeCode(req: Request, res: Response): Promise<void> {
+  const code = typeof req.body?.code === 'string' ? req.body.code : undefined;
+  if (!code) {
+    res.status(400).json({ error: 'Missing code' });
+    return;
+  }
+
+  const userId = consumeOneTimeCode(code);
+  if (!userId) {
+    res.status(401).json({ error: 'Invalid or expired code' });
+    return;
+  }
+
+  const user = await User.findById(userId).select('-hashedPassword');
+  if (!user) {
+    res.status(401).json({ error: 'User not found' });
+    return;
+  }
+
+  const token = signUserToken(user._id.toString());
+  setAuthCookie(res, token);
+  res.status(200).json({ success: true, user, token });
 }

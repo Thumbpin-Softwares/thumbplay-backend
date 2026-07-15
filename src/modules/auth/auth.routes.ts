@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, logout, me, googleRedirect, googleCallback } from './auth.controller';
+import { register, login, logout, me, googleRedirect, googleCallback, exchangeCode } from './auth.controller';
 import { requireAuth } from './auth.middleware';
 
 const router: Router = Router();
@@ -151,5 +151,43 @@ router.get('/google', googleRedirect);
  *         description: Redirect to FRONTEND_URL/dashboard on success, or FRONTEND_URL/auth/login?error=google_oauth_failed on failure
  */
 router.get('/google/callback', googleCallback);
+
+/**
+ * @openapi
+ * /auth/exchange:
+ *   post:
+ *     summary: Exchange a one-time OAuth handoff code for a session
+ *     description: >
+ *       Called server-to-server by the frontend's own backend (not the browser)
+ *       right after the /auth/google/callback redirect, since the frontend lives
+ *       on a different domain and never receives this backend's cookie directly.
+ *       The code is single-use and expires after 60 seconds.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [code]
+ *             properties:
+ *               code: { type: string }
+ *     responses:
+ *       200:
+ *         description: Valid code — auth_token cookie set (for direct calls to this backend) and the token returned in the body so the caller can mint its own cookie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 user: { $ref: '#/components/schemas/User' }
+ *                 token: { type: string }
+ *       400:
+ *         description: Missing code
+ *       401:
+ *         description: Invalid, expired, or already-used code
+ */
+router.post('/exchange', exchangeCode);
 
 export default router;

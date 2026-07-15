@@ -14,6 +14,14 @@ function optional(name: string, fallback: string): string {
 
 const nodeEnv = optional('NODE_ENV', 'development');
 
+// This backend's own publicly-reachable base URL (e.g. https://api.thumbpin.in,
+// or http://localhost:5000 for local dev). Single source of truth for any URL
+// this backend needs to describe itself with — derive from this instead of
+// hardcoding or separately configuring the same domain in multiple env vars,
+// which is exactly how googleCallbackUrl went stale pointing at localhost
+// after a redeploy to a new domain.
+const backendPublicUrl = optional('BACKEND_PUBLIC_URL', `http://localhost:${optional('PORT', '5000')}`);
+
 // Parsed and validated once at import time — fails fast on boot if the
 // deployment is misconfigured, instead of surfacing as a cryptic runtime
 // error the first time a request needs a missing var.
@@ -21,6 +29,7 @@ export const env = {
   nodeEnv,
   isProduction: nodeEnv === 'production',
   port: Number(optional('PORT', '5000')),
+  backendPublicUrl,
 
   // Shared with thumbpinclient — same MongoDB database/User collection.
   mongodbUri: required('MONGODB_URI'),
@@ -34,7 +43,9 @@ export const env = {
 
   googleClientId: required('GOOGLE_CLIENT_ID'),
   googleClientSecret: required('GOOGLE_CLIENT_SECRET'),
-  googleCallbackUrl: required('GOOGLE_CALLBACK_URL'),
+  // Derived from backendPublicUrl by default — only set GOOGLE_CALLBACK_URL
+  // explicitly if it needs to differ from this backend's own public URL.
+  googleCallbackUrl: optional('GOOGLE_CALLBACK_URL', `${backendPublicUrl}/api/v1/auth/google/callback`),
 
   // CORS origin (credentials:true requires an explicit origin, not "*") and
   // the post-OAuth redirect target.

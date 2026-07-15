@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import { env } from '../../config/env';
 import { UserJwtPayload } from './auth.types';
@@ -29,4 +30,29 @@ export function setAuthCookie(res: Response, token: string): void {
 
 export function clearAuthCookie(res: Response): void {
   res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+}
+
+// ── One-time OAuth handoff code ─────────────────────────────────────────
+// The frontend lives on a different registrable domain than this backend,
+// so the auth_token cookie this backend sets after Google OAuth never
+// reaches the frontend's own server (browsers don't forward cross-site
+// cookies). Instead we hand the frontend a short-lived, single-use opaque
+// code via the redirect URL; its server then exchanges that code
+// server-to-server (POST /auth/exchange) for a token it can set as its own
+// same-domain cookie. In-memory only — fine for a single backend instance;
+// switch to Redis if this backend is ever horizontally scaled.
+const ONE_TIME_CODE_TTL_MS = 60 * 1000;
+const oneTimeCodes = new Map<string, { userId: string; expiresAt: number }>();
+
+export function createOneTimeCode(userId: string): string {
+  const code = randomBytes(32).toString('hex');
+  oneTimeCodes.set(code, { userId, expiresAt: Date.now() + ONE_TIME_CODE_TTL_MS });
+  return code;
+}
+
+export function consumeOneTimeCode(code: string): string | null {
+  const entry = oneTimeCodes.get(code);
+  oneTimeCodes.delete(code); // single use regardless of outcome
+  if (!entry || entry.expiresAt < Date.now()) return null;
+  return entry.userId;
 }

@@ -17,7 +17,7 @@ const options = {
       description:
         "Backend API for ThumbpinVids — replicates (and will eventually replace) the Next.js API routes in thumbpinclient.",
     },
-    servers: [{ url: `http://localhost:${env.port}/api/v1`, description: 'Local dev' }],
+    servers: [{ url: `${env.backendPublicUrl}/api/v1`, description: env.isProduction ? 'Server' : 'Local dev' }],
     components: {
       securitySchemes: {
         cookieAuth: {
