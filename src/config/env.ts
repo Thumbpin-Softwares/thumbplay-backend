@@ -68,6 +68,17 @@ export const env = {
     // requiredList() throws if empty, so this is always defined.
     return this.frontendUrls[0]!;
   },
+  // Validates a caller-supplied origin (e.g. Google OAuth's `state`, or an
+  // `?origin=` query param) against the FRONTEND_URL allow-list, so it's
+  // safe to redirect to — never trust an unvalidated origin for a redirect
+  // target. Falls back to the primary frontend if missing/unrecognized.
+  resolveFrontendUrl(candidate: string | undefined | null): string {
+    const normalized = candidate?.trim().replace(/\/+$/, '');
+    if (normalized && this.frontendUrls.includes(normalized)) {
+      return normalized;
+    }
+    return this.frontendUrls[0]!;
+  },
 
   adminEmail: required('ADMIN_EMAIL'),
   // bcrypt hash only — no plaintext admin-password fallback exists in this backend.

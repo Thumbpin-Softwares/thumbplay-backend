@@ -71,14 +71,24 @@ export function me(req: AuthedRequest, res: Response): void {
   res.status(200).json({ success: true, user: req.user });
 }
 
-export function googleRedirect(_req: Request, res: Response): void {
-  res.redirect(getGoogleAuthUrl());
+// `?origin=` is sent by the frontend's own "Continue with Google" link (it
+// knows its own window.location.origin) so we know which of possibly several
+// allowed frontends (FRONTEND_URL) to send the user back to — validated
+// against the allow-list, then round-tripped through Google as `state`.
+export function googleRedirect(req: Request, res: Response): void {
+  const origin = typeof req.query.origin === 'string' ? req.query.origin : undefined;
+  const state = env.resolveFrontendUrl(origin);
+  res.redirect(getGoogleAuthUrl(state));
 }
 
 export async function googleCallback(req: Request, res: Response): Promise<void> {
   const code = typeof req.query.code === 'string' ? req.query.code : undefined;
+  // Re-validate rather than trust verbatim — `state` is a query param on this
+  // request and could in principle be tampered with before it reaches us.
+  const frontendUrl = env.resolveFrontendUrl(typeof req.query.state === 'string' ? req.query.state : undefined);
+
   if (!code) {
-    res.redirect(`${env.frontendUrl}/auth/login?error=google_oauth_failed`);
+    res.redirect(`${frontendUrl}/auth/login?error=google_oauth_failed`);
     return;
   }
 
@@ -90,10 +100,10 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
     // cookie — it exchanges the one-time code below for its own instead.
     setAuthCookie(res, token);
     const handoffCode = createOneTimeCode(user._id.toString());
-    res.redirect(`${env.frontendUrl}/auth/callback?code=${handoffCode}`);
+    res.redirect(`${frontendUrl}/auth/callback?code=${handoffCode}`);
   } catch (error) {
     console.error('[auth] Google sign-in failed:', error);
-    res.redirect(`${env.frontendUrl}/auth/login?error=google_oauth_failed`);
+    res.redirect(`${frontendUrl}/auth/login?error=google_oauth_failed`);
   }
 }
 

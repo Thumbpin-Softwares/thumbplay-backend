@@ -127,6 +127,16 @@ router.get('/me', requireAuth, me);
  *     summary: Start Google OAuth sign-in
  *     description: Redirects the browser to Google's consent screen. Not meant to be called via fetch/XHR — navigate to it directly.
  *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: origin
+ *         required: false
+ *         schema: { type: string }
+ *         description: >
+ *           The calling frontend's own origin (window.location.origin), validated against the
+ *           FRONTEND_URL allow-list and round-tripped through Google as `state` so the callback
+ *           knows which frontend to redirect back to. Falls back to the first FRONTEND_URL entry
+ *           if omitted or not recognized.
  *     responses:
  *       302:
  *         description: Redirect to accounts.google.com
@@ -138,7 +148,7 @@ router.get('/google', googleRedirect);
  * /auth/google/callback:
  *   get:
  *     summary: Google OAuth callback
- *     description: Google redirects here after consent. Exchanges the code, finds/links/creates the user, sets the auth_token cookie, then redirects to the frontend.
+ *     description: Google redirects here after consent. Exchanges the code, finds/links/creates the user, sets the auth_token cookie, then redirects to the frontend that initiated sign-in (see /auth/google's `origin` param).
  *     tags: [Auth]
  *     parameters:
  *       - in: query
@@ -146,9 +156,14 @@ router.get('/google', googleRedirect);
  *         required: true
  *         schema: { type: string }
  *         description: Authorization code issued by Google
+ *       - in: query
+ *         name: state
+ *         required: false
+ *         schema: { type: string }
+ *         description: Echoed back by Google from /auth/google's `origin` param; re-validated against FRONTEND_URL before use.
  *     responses:
  *       302:
- *         description: Redirect to FRONTEND_URL/dashboard on success, or FRONTEND_URL/auth/login?error=google_oauth_failed on failure
+ *         description: Redirect to {resolved frontend}/auth/callback?code=... on success, or {resolved frontend}/auth/login?error=google_oauth_failed on failure
  */
 router.get('/google/callback', googleCallback);
 

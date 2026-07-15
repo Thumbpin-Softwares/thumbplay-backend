@@ -44,10 +44,17 @@ const googleClient = new OAuth2Client({
   redirectUri: env.googleCallbackUrl,
 });
 
-export function getGoogleAuthUrl(): string {
+// `state` carries the originating frontend's origin through the OAuth round
+// trip — Google's callback request has no Origin/Referer header we could
+// otherwise use to know which frontend (localhost, prod, ...) to redirect
+// back to, since FRONTEND_URL can list more than one. Caller is responsible
+// for validating `state` against the FRONTEND_URL allow-list before trusting
+// it (see googleRedirect/googleCallback).
+export function getGoogleAuthUrl(state: string): string {
   return googleClient.generateAuthUrl({
     access_type: 'online',
     scope: ['openid', 'email', 'profile'],
+    state,
   });
 }
 
