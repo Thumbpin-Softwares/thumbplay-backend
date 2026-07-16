@@ -19,6 +19,12 @@ export async function transactions(req: AuthedRequest, res: Response): Promise<v
   const limit = Number(req.query.limit) || undefined;
   const skip = Number(req.query.skip) || undefined;
 
-  const { transactions: rows, hasMore } = await listTransactionsForUser({ userId, limit, skip });
+  // exactOptionalPropertyTypes rejects `{ limit: undefined }` for an
+  // optional `limit?: number` field — only include the key when it's set.
+  const { transactions: rows, hasMore } = await listTransactionsForUser({
+    userId,
+    ...(limit != null ? { limit } : {}),
+    ...(skip != null ? { skip } : {}),
+  });
   res.status(200).json({ success: true, transactions: rows, hasMore });
 }
