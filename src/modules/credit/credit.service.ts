@@ -1,5 +1,5 @@
 import { User, IUser } from '../user/user.model';
-import { CreditTransaction, CreditEventType, CreditTransactionMode } from './credit-transaction.model';
+import { CreditTransaction, ICreditTransaction, CreditEventType, CreditTransactionMode } from './credit-transaction.model';
 import { FREE_QUOTA_LIMITS, CREDIT_ACTIONS, FreeBucket, CreditActionConfig } from './credit-costs';
 
 // Port of thumbpinclient/src/lib/credit-system.js, trimmed to the functions
@@ -402,6 +402,39 @@ export async function addCredits({ userId, amount, action = 'credits_topup', met
   });
 
   return user;
+}
+
+export interface ListTransactionsInput {
+  userId: string;
+  limit?: number;
+  skip?: number;
+}
+
+export interface ListTransactionsResult {
+  transactions: ICreditTransaction[];
+  hasMore: boolean;
+}
+
+const DEFAULT_TRANSACTIONS_LIMIT = 20;
+const MAX_TRANSACTIONS_LIMIT = 100;
+
+// A user's own credit activity feed — newest first. Fetches one extra row
+// (limit + 1) to determine `hasMore` without a separate count query.
+export async function listTransactionsForUser({
+  userId,
+  limit = DEFAULT_TRANSACTIONS_LIMIT,
+  skip = 0,
+}: ListTransactionsInput): Promise<ListTransactionsResult> {
+  const boundedLimit = Math.min(Math.max(1, limit), MAX_TRANSACTIONS_LIMIT);
+
+  const rows = await CreditTransaction.find({ userId })
+    .sort({ createdAt: -1 })
+    .skip(Math.max(0, skip))
+    .limit(boundedLimit + 1)
+    .lean();
+
+  const hasMore = rows.length > boundedLimit;
+  return { transactions: rows.slice(0, boundedLimit), hasMore };
 }
 
 export type AdminCreditAction = 'set' | 'add' | 'remove';

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthedRequest } from '../auth/auth.types';
-import { buildQuotaSnapshot } from './credit.service';
+import { buildQuotaSnapshot, listTransactionsForUser } from './credit.service';
 
 // requireAuth already loaded req.user (hashedPassword excluded) — no extra
 // DB round-trip needed here.
@@ -12,4 +12,13 @@ export function me(req: AuthedRequest, res: Response): void {
     plan: user?.plan || 'free',
     freeQuota: buildQuotaSnapshot(user),
   });
+}
+
+export async function transactions(req: AuthedRequest, res: Response): Promise<void> {
+  const userId = req.user!._id.toString();
+  const limit = Number(req.query.limit) || undefined;
+  const skip = Number(req.query.skip) || undefined;
+
+  const { transactions: rows, hasMore } = await listTransactionsForUser({ userId, limit, skip });
+  res.status(200).json({ success: true, transactions: rows, hasMore });
 }

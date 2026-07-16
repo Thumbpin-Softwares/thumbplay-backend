@@ -74,5 +74,9 @@ const CreditTransactionSchema = new Schema<ICreditTransaction>(
   },
 );
 
+// Newest-first is the only access pattern this collection is queried with
+// (a user's own activity feed) — index matches that exactly.
+CreditTransactionSchema.index({ userId: 1, createdAt: -1 });
+
 export const CreditTransaction: Model<ICreditTransaction> =
   mongoose.models.CreditTransaction || mongoose.model<ICreditTransaction>('CreditTransaction', CreditTransactionSchema);
