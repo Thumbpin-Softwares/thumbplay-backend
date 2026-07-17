@@ -6,6 +6,7 @@ import creditRoutes from '../modules/credit/credit.routes';
 import seedanceReelRoutes from '../modules/seedance-reel/seedance-reel.routes';
 import actionReelRoutes from '../modules/action-reel/action-reel.routes';
 import comedyReelRoutes from '../modules/comedy-reel/comedy-reel.routes';
+import reAvatarsRoutes from '../modules/re-avatars/re-avatars.routes';
 
 const router : Router = Router();
 
@@ -16,5 +17,6 @@ router.use('/credits', creditRoutes);
 router.use('/seedance-reel', seedanceReelRoutes);
 router.use('/action-reel', actionReelRoutes);
 router.use('/comedy-reel', comedyReelRoutes);
+router.use('/avatars', reAvatarsRoutes);
 
 export default router;
