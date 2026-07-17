@@ -1,8 +1,69 @@
 import { Router } from 'express';
-import { getUserCredits, updateUserCredits } from './admin-users.controller';
+import { getUserCredits, updateUserCredits, listUsers, updateUser, deleteUser } from './admin-users.controller';
 import { requireAdmin } from './admin.middleware';
 
 const router: Router = Router();
+
+/**
+ * @openapi
+ * /admin/users:
+ *   get:
+ *     summary: List/search users
+ *     tags: [Admin Auth]
+ *     security:
+ *       - adminCookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Paginated users list
+ */
+router.get('/', requireAdmin, listUsers);
+
+/**
+ * @openapi
+ * /admin/users/{id}:
+ *   patch:
+ *     summary: Update a user's plan, role, or name
+ *     tags: [Admin Auth]
+ *     security:
+ *       - adminCookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Updated user
+ *       404:
+ *         description: User not found
+ *   delete:
+ *     summary: Delete a user account
+ *     tags: [Admin Auth]
+ *     security:
+ *       - adminCookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Deleted
+ *       404:
+ *         description: User not found
+ */
+router.patch('/:id', requireAdmin, updateUser);
+router.delete('/:id', requireAdmin, deleteUser);
 
 /**
  * @openapi
