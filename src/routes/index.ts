@@ -9,6 +9,7 @@ import seedanceReelRoutes from '../modules/seedance-reel/seedance-reel.routes';
 import actionReelRoutes from '../modules/action-reel/action-reel.routes';
 import comedyReelRoutes from '../modules/comedy-reel/comedy-reel.routes';
 import reAvatarsRoutes from '../modules/re-avatars/re-avatars.routes';
+import modelTourRoutes from '../modules/model-tour/model-tour.routes';
 
 const router : Router = Router();
 
@@ -22,5 +23,6 @@ router.use('/seedance-reel', seedanceReelRoutes);
 router.use('/action-reel', actionReelRoutes);
 router.use('/comedy-reel', comedyReelRoutes);
 router.use('/avatars', reAvatarsRoutes);
+router.use('/model-tour', modelTourRoutes);
 
 export default router;

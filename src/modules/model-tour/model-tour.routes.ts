@@ -1,0 +1,161 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { uploadAvatar, uploadProperty, generate, getJob, listGenerations } from './model-tour.controller';
+import { requireAuth } from '../auth/auth.middleware';
+
+const router: Router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+const avatarUploadFields = upload.fields([
+  { name: 'presenterImage_0', maxCount: 1 },
+  { name: 'presenterImage_1', maxCount: 1 },
+  { name: 'presenterImage_2', maxCount: 1 },
+  { name: 'presenterImage_3', maxCount: 1 },
+]);
+const propertyUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
+
+/**
+ * @openapi
+ * /model-tour/upload/avatar:
+ *   post:
+ *     summary: Upload 1-4 presenter photos as a new avatar collection (also saved to the user's Asset library)
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               presenterImage_0: { type: string, format: binary }
+ *               presenterImage_1: { type: string, format: binary }
+ *               presenterImage_2: { type: string, format: binary }
+ *               presenterImage_3: { type: string, format: binary }
+ *               name: { type: string }
+ *     responses:
+ *       200:
+ *         description: Created collection
+ *       400:
+ *         description: Invalid input
+ */
+router.post('/upload/avatar', requireAuth, avatarUploadFields, uploadAvatar);
+
+/**
+ * @openapi
+ * /model-tour/upload/property:
+ *   post:
+ *     summary: Upload a single property photo (saved to the user's Asset library)
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file]
+ *             properties:
+ *               file: { type: string, format: binary }
+ *               name: { type: string }
+ *     responses:
+ *       200:
+ *         description: Created asset
+ *       400:
+ *         description: Invalid input
+ */
+router.post('/upload/property', requireAuth, propertyUploadField, uploadProperty);
+
+/**
+ * @openapi
+ * /model-tour/generate:
+ *   post:
+ *     summary: Generate a home-tour video via fal's omni-hometour-pipeline workflow
+ *     description: >
+ *       Streams progress as Server-Sent Events. Property/avatar images must already be
+ *       uploaded (via upload/property and upload/avatar) — this endpoint takes their URLs,
+ *       not files. Charges the `real_estate_video` credit action up front, refunded on failure.
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [jobId, propertyName, avatarImageUrls, propertyImageUrls]
+ *             properties:
+ *               jobId: { type: string, description: "Client-generated UUID, must be unique" }
+ *               propertyName: { type: string }
+ *               locationLandmarks: { type: string }
+ *               connectivity: { type: string }
+ *               language: { type: string }
+ *               tierClass: { type: string }
+ *               carpetArea: { type: string }
+ *               amenities: { type: string }
+ *               tonality: { type: string }
+ *               vibe: { type: string }
+ *               avatarImageUrls: { type: array, items: { type: string }, minItems: 1, maxItems: 4 }
+ *               propertyImageUrls: { type: array, items: { type: string }, minItems: 1, maxItems: 4 }
+ *     responses:
+ *       200:
+ *         description: text/event-stream of generation progress
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Not authenticated
+ *       402:
+ *         description: Insufficient credits
+ *       409:
+ *         description: jobId already exists
+ */
+router.post('/generate', requireAuth, generate);
+
+/**
+ * @openapi
+ * /model-tour/jobs/{jobId}:
+ *   get:
+ *     summary: Resume/poll a model-tour generation job
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: The job document
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: Job not found
+ */
+router.get('/jobs/:jobId', requireAuth, getJob);
+
+/**
+ * @openapi
+ * /model-tour/generations:
+ *   get:
+ *     summary: List the user's own model-tour generations (newest first), including in-progress ones
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Paginated jobs list
+ */
+router.get('/generations', requireAuth, listGenerations);
+
+export default router;
