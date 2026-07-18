@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { generatePipeline, getJob } from './seedance-reel.controller';
+import { generatePipeline, getJob, previewScript } from './seedance-reel.controller';
 import { requireAuth } from '../auth/auth.middleware';
 import { reelUploadFields } from '../reel/upload.middleware';
 import { createRenderRemotionHandler } from '../render/render.controller';
@@ -91,6 +91,37 @@ router.post('/generate-pipeline', requireAuth, reelUploadFields, generatePipelin
  *         description: Job not found
  */
 router.get('/jobs/:jobId', requireAuth, getJob);
+
+/**
+ * @openapi
+ * /seedance-reel/preview-script:
+ *   post:
+ *     summary: Preview how the user's actual script text will sound (raw audio bytes, not JSON)
+ *     tags: [Seedance Reel]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [text, voiceId]
+ *             properties:
+ *               text: { type: string, maxLength: 600, description: "Truncated to 600 chars server-side" }
+ *               voiceId: { type: string }
+ *               language: { type: string }
+ *     responses:
+ *       200:
+ *         description: Raw audio bytes (audio/mpeg or audio/wav depending on voice provider)
+ *       400:
+ *         description: Missing text or voiceId
+ *       401:
+ *         description: Not authenticated
+ *       402:
+ *         description: Insufficient credits
+ */
+router.post('/preview-script', requireAuth, previewScript);
 
 /**
  * @openapi

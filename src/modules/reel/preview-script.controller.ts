@@ -10,7 +10,7 @@ import { synthesizeVoice } from './tts.service';
 // burn real TTS calls on previews they could never actually render.
 const MAX_PREVIEW_CHARS = 600;
 
-export function createPreviewScriptHandler(logPrefix: string) {
+export function createPreviewScriptHandler(logPrefix: string, creditAction: string = 'action_reel_video') {
   return async function previewScript(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?._id?.toString();
     if (!userId) {
@@ -18,7 +18,7 @@ export function createPreviewScriptHandler(logPrefix: string) {
       return;
     }
 
-    const affordability = await hasSufficientCreditsForAction({ userId, action: 'action_reel_video' });
+    const affordability = await hasSufficientCreditsForAction({ userId, action: creditAction });
     if (!affordability.ok) {
       res.status(affordability.status).json(affordability.payload);
       return;

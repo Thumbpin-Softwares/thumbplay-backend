@@ -10,6 +10,7 @@ import { adaptScriptParts } from '../reel/language-adapt.service';
 import { reproduceTemplate } from '../reel/template-reproduce.service';
 import { generateAndUploadTTS, callSeedanceAndUpload } from '../reel/seedance.service';
 import { startSse } from '../reel/sse';
+import { createPreviewScriptHandler } from '../reel/preview-script.controller';
 import {
   MASTER_TEMPLATE_A,
   MASTER_TEMPLATE_B,
@@ -372,3 +373,5 @@ export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
 
   res.status(200).json({ job });
 }
+
+export const previewScript = createPreviewScriptHandler('SeedanceReel', CREDIT_ACTION);
