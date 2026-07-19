@@ -10,6 +10,7 @@ import actionReelRoutes from '../modules/action-reel/action-reel.routes';
 import comedyReelRoutes from '../modules/comedy-reel/comedy-reel.routes';
 import reAvatarsRoutes from '../modules/re-avatars/re-avatars.routes';
 import modelTourRoutes from '../modules/model-tour/model-tour.routes';
+import exportsRoutes from '../modules/exports/exports.routes';
 
 const router : Router = Router();
 
@@ -24,5 +25,6 @@ router.use('/action-reel', actionReelRoutes);
 router.use('/comedy-reel', comedyReelRoutes);
 router.use('/avatars', reAvatarsRoutes);
 router.use('/model-tour', modelTourRoutes);
+router.use('/exports', exportsRoutes);
 
 export default router;

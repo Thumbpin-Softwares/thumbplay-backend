@@ -29,12 +29,35 @@ export const s3 = new S3Client({
 export const BUCKET = env.r2BucketName;
 export const R2_PUBLIC_URL = env.r2PublicUrl;
 
-export async function uploadToR2(buffer: Buffer, key: string, contentType = 'application/octet-stream'): Promise<string> {
+export interface UploadToR2Options {
+  // Re-encode with a short keyframe interval before upload (see
+  // video-normalize.service.ts). Opt-in and only worth the extra encode
+  // time for clips that will be reopened/re-cut in the editor.
+  normalizeKeyframes?: boolean;
+}
+
+export async function uploadToR2(
+  buffer: Buffer,
+  key: string,
+  contentType = 'application/octet-stream',
+  options: UploadToR2Options = {},
+): Promise<string> {
+  let body = buffer;
+  if (options.normalizeKeyframes) {
+    try {
+      const { normalizeKeyframesForSeeking } = await import('./video-normalize.service');
+      body = await normalizeKeyframesForSeeking(buffer);
+    } catch (e) {
+      console.error('[uploadToR2] Keyframe normalization failed, uploading original:', e instanceof Error ? e.message : e);
+      body = buffer;
+    }
+  }
+
   await s3.send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
-      Body: buffer,
+      Body: body,
       ContentType: contentType,
     }),
   );

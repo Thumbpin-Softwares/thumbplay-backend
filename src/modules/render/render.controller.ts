@@ -34,10 +34,18 @@ export interface RenderPipelineConfig {
   r2KeyPrefix: string;
   assetDisplayName: string;
   assetSource: string;
-  exportedFrom: string;
+  // Static per-pipeline value, or omitted to fall back to the request's own
+  // `inputProps.source` — the generic exports/render-remotion route re-tags
+  // whatever pipeline originally produced the asset being re-exported.
+  exportedFrom?: string;
   x264Preset: X264Preset;
   concurrency?: number;
   withRetry: boolean;
+  // Re-encode the rendered output with a short keyframe interval before
+  // upload so it stays frame-accurately seekable if reopened/re-cut again
+  // (see reel/video-normalize.service.ts). Only worth it for outputs that
+  // are themselves EDITABLE_SOURCES — not final pipeline exports.
+  normalizeKeyframes?: boolean;
 }
 
 export function createRenderRemotionHandler(config: RenderPipelineConfig) {
@@ -111,7 +119,10 @@ export function createRenderRemotionHandler(config: RenderPipelineConfig) {
       }
 
       const key = buildUserKey(userId, 'videos', 'mp4', `${config.r2KeyPrefix}-${Date.now()}`);
-      const url = await uploadToR2(videoBuf, key, 'video/mp4');
+      const url = await uploadToR2(videoBuf, key, 'video/mp4', config.normalizeKeyframes ? { normalizeKeyframes: true } : {});
+
+      const exportedFrom =
+        config.exportedFrom ?? (typeof inputProps.source === 'string' ? inputProps.source : config.assetSource);
 
       // metadata.source deliberately isn't reopenable as a Remotion
       // composition (it's a flattened mp4) — matches source's convention.
@@ -121,7 +132,7 @@ export function createRenderRemotionHandler(config: RenderPipelineConfig) {
           name: `${config.assetDisplayName} (exported) — ${new Date().toLocaleDateString()}`,
           url,
           type: 'video',
-          metadata: { source: config.assetSource, exportedFrom: config.exportedFrom },
+          metadata: { source: config.assetSource, exportedFrom },
         });
       } catch (dbErr) {
         console.error(`[${config.logLabel} render-remotion] DB save error:`, dbErr);
