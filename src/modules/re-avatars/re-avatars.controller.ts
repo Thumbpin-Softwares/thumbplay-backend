@@ -1,7 +1,10 @@
 import { Response } from 'express';
 import { AuthedRequest } from '../auth/auth.types';
 import { Asset } from '../asset/asset.model';
-import { getReAvatars, ReAvatarCard } from './re-avatars.service';
+import { getReAvatars, ReAvatarCard, uploadAvatarCollection } from './re-avatars.service';
+
+const MAX_IMAGES = 4;
+type UploadFiles = Record<string, Express.Multer.File[]>;
 
 // GET /avatars/re — SSE stream, same event contract as the old
 // thumbpinclient route it replaces:
@@ -42,5 +45,33 @@ export async function stream(req: AuthedRequest, res: Response): Promise<void> {
     send({ type: 'error', message: error instanceof Error ? error.message : 'Failed to load RE avatars' });
   } finally {
     res.end();
+  }
+}
+
+// POST /avatars/upload — multipart presenterImage_0..3 + name. Common
+// upload endpoint every template's Presenter/Avatar tile posts to.
+export async function uploadCollection(req: AuthedRequest, res: Response): Promise<void> {
+  const userId = req.user?._id?.toString();
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const files = (req as unknown as { files?: UploadFiles }).files;
+  const picked: { buffer: Buffer; mimetype: string }[] = [];
+  for (let i = 0; i < MAX_IMAGES; i++) {
+    const f = files?.[`presenterImage_${i}`]?.[0];
+    if (f) picked.push({ buffer: f.buffer, mimetype: f.mimetype });
+  }
+
+  const name = ((req.body?.name as string) || '').trim() || `Presenter — ${new Date().toLocaleDateString()}`;
+
+  try {
+    const result = await uploadAvatarCollection(userId, picked, name);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Upload failed';
+    console.error('[Avatars] uploadCollection error:', error);
+    res.status(400).json({ error: message });
   }
 }

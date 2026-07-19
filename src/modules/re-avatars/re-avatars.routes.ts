@@ -1,8 +1,17 @@
 import { Router } from 'express';
-import { stream } from './re-avatars.controller';
+import multer from 'multer';
+import { stream, uploadCollection } from './re-avatars.controller';
 import { requireAuth } from '../auth/auth.middleware';
 
 const router: Router = Router();
+
+const upload = multer({ storage: multer.memoryStorage() });
+const avatarUploadFields = upload.fields([
+  { name: 'presenterImage_0', maxCount: 1 },
+  { name: 'presenterImage_1', maxCount: 1 },
+  { name: 'presenterImage_2', maxCount: 1 },
+  { name: 'presenterImage_3', maxCount: 1 },
+]);
 
 /**
  * @openapi
@@ -25,5 +34,33 @@ const router: Router = Router();
  *         description: Not authenticated
  */
 router.get('/re', requireAuth, stream);
+
+/**
+ * @openapi
+ * /avatars/upload:
+ *   post:
+ *     summary: Upload 1-4 presenter photos as a new avatar collection (common upload endpoint for every template)
+ *     tags: [Avatars]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               presenterImage_0: { type: string, format: binary }
+ *               presenterImage_1: { type: string, format: binary }
+ *               presenterImage_2: { type: string, format: binary }
+ *               presenterImage_3: { type: string, format: binary }
+ *               name: { type: string }
+ *     responses:
+ *       200:
+ *         description: Created collection
+ *       400:
+ *         description: Invalid input
+ */
+router.post('/upload', requireAuth, avatarUploadFields, uploadCollection);
 
 export default router;

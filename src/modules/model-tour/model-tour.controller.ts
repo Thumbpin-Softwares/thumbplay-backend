@@ -4,40 +4,13 @@ import { ModelTourJob } from './model-tour-job.model';
 import { Asset } from '../asset/asset.model';
 import { consumeCreditsForAction, refundCreditsForAction, ConsumeDebit } from '../credit/credit.service';
 import { startSse } from '../reel/sse';
-import { uploadAvatarCollection, uploadPropertyImage, callOmniHomeTourAndUpload } from './model-tour.service';
+import { uploadPropertyImage, callOmniHomeTourAndUpload } from './model-tour.service';
 
 const CREDIT_ACTION = 'real_estate_video';
 const LOG = '[ModelTour]';
 const MAX_IMAGES = 4;
 
 type UploadFiles = Record<string, Express.Multer.File[]>;
-
-// POST /model-tour/upload/avatar — multipart presenterImage_0..3 + name.
-export async function uploadAvatar(req: AuthedRequest, res: Response): Promise<void> {
-  const userId = req.user?._id?.toString();
-  if (!userId) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const files = (req as unknown as { files?: UploadFiles }).files;
-  const picked: { buffer: Buffer; mimetype: string }[] = [];
-  for (let i = 0; i < MAX_IMAGES; i++) {
-    const f = files?.[`presenterImage_${i}`]?.[0];
-    if (f) picked.push({ buffer: f.buffer, mimetype: f.mimetype });
-  }
-
-  const name = ((req.body?.name as string) || '').trim() || `Presenter — ${new Date().toLocaleDateString()}`;
-
-  try {
-    const result = await uploadAvatarCollection(userId, picked, name);
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    console.error(`${LOG} uploadAvatar error:`, error);
-    res.status(400).json({ error: message });
-  }
-}
 
 // POST /model-tour/upload/property — multipart single `file` + name.
 export async function uploadProperty(req: AuthedRequest, res: Response): Promise<void> {

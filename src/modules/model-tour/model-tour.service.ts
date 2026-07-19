@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { fal } from '../reel/fal-client';
 import { uploadToR2, buildUserKey, extFromMime } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
@@ -11,36 +10,9 @@ export interface UploadedImage {
   mimetype: string;
 }
 
-// Same contract as thumbpinclient's /api/veo-long-ad/presenter/upload —
-// creates a new permanent Asset (type "presenter") so the collection also
-// shows up in "My Avatars" going forward, not just this generation.
-export async function uploadAvatarCollection(userId: string, files: UploadedImage[], name: string) {
-  if (files.length === 0) throw new Error('At least one presenter image is required');
-
-  for (const [i, file] of files.entries()) {
-    if (!ALLOWED_MIME.has(file.mimetype)) throw new Error(`Image ${i + 1}: only JPEG, PNG, or WebP are allowed`);
-    if (file.buffer.byteLength > MAX_BYTES_PER_IMAGE) throw new Error(`Image ${i + 1} exceeds the 10 MB limit`);
-  }
-
-  const collectionId = crypto.randomUUID();
-  const urls: string[] = [];
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]!;
-    const ext = extFromMime(file.mimetype);
-    const key = `users/${userId}/presenters/${collectionId}/${i}.${ext}`;
-    urls.push(await uploadToR2(file.buffer, key, file.mimetype));
-  }
-
-  const asset = await Asset.create({
-    userId,
-    name,
-    url: urls[0]!,
-    type: 'presenter',
-    metadata: { collectionId, urls, count: urls.length, source: 'model-tour-avatar-upload' },
-  });
-
-  return { collectionId, assetId: (asset._id as { toString(): string }).toString(), name, urls, count: urls.length };
-}
+// Avatar/presenter collection upload now lives in the re-avatars module as
+// the one common endpoint every template posts to — see
+// re-avatars/re-avatars.service.ts's uploadAvatarCollection.
 
 // Same contract as thumbpinclient's /api/assets/upload (single file) —
 // property photos land in the general Asset library too, same as every

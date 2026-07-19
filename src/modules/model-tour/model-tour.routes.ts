@@ -1,46 +1,15 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadAvatar, uploadProperty, generate, getJob, listGenerations } from './model-tour.controller';
+import { uploadProperty, generate, getJob, listGenerations } from './model-tour.controller';
 import { requireAuth } from '../auth/auth.middleware';
 
 const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const avatarUploadFields = upload.fields([
-  { name: 'presenterImage_0', maxCount: 1 },
-  { name: 'presenterImage_1', maxCount: 1 },
-  { name: 'presenterImage_2', maxCount: 1 },
-  { name: 'presenterImage_3', maxCount: 1 },
-]);
 const propertyUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
 
-/**
- * @openapi
- * /model-tour/upload/avatar:
- *   post:
- *     summary: Upload 1-4 presenter photos as a new avatar collection (also saved to the user's Asset library)
- *     tags: [Model Tour]
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               presenterImage_0: { type: string, format: binary }
- *               presenterImage_1: { type: string, format: binary }
- *               presenterImage_2: { type: string, format: binary }
- *               presenterImage_3: { type: string, format: binary }
- *               name: { type: string }
- *     responses:
- *       200:
- *         description: Created collection
- *       400:
- *         description: Invalid input
- */
-router.post('/upload/avatar', requireAuth, avatarUploadFields, uploadAvatar);
+// Avatar collection upload moved to the common /avatars/upload endpoint
+// (re-avatars module) — every template posts there now, not here.
 
 /**
  * @openapi

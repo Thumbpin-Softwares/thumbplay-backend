@@ -1,7 +1,51 @@
+import crypto from 'node:crypto';
 import { ListObjectsV2Command, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { s3, BUCKET, R2_PUBLIC_URL } from '../reel/r2.service';
+import { s3, BUCKET, R2_PUBLIC_URL, uploadToR2, extFromMime } from '../reel/r2.service';
+import { Asset } from '../asset/asset.model';
 import { mapConcurrent } from '../../lib/concurrency';
 import { cacheGet, cacheSet } from '../../lib/cache';
+
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+const MAX_BYTES_PER_IMAGE = 10 * 1024 * 1024; // 10 MB
+
+export interface UploadedImage {
+  buffer: Buffer;
+  mimetype: string;
+}
+
+// Common upload entry point for every template's "Presenter / Avatar" tile
+// (see thumbpinclient's ModelSelector) — one general collection-upload
+// endpoint shared across all templates, rather than each template routing
+// to its own pipeline-specific upload route. Creates a permanent Asset
+// (type "presenter") so the collection also shows up in "My Agents" going
+// forward, not just the generation it was uploaded for.
+export async function uploadAvatarCollection(userId: string, files: UploadedImage[], name: string) {
+  if (files.length === 0) throw new Error('At least one presenter image is required');
+
+  for (const [i, file] of files.entries()) {
+    if (!ALLOWED_MIME.has(file.mimetype)) throw new Error(`Image ${i + 1}: only JPEG, PNG, or WebP are allowed`);
+    if (file.buffer.byteLength > MAX_BYTES_PER_IMAGE) throw new Error(`Image ${i + 1} exceeds the 10 MB limit`);
+  }
+
+  const collectionId = crypto.randomUUID();
+  const urls: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]!;
+    const ext = extFromMime(file.mimetype);
+    const key = `users/${userId}/presenters/${collectionId}/${i}.${ext}`;
+    urls.push(await uploadToR2(file.buffer, key, file.mimetype));
+  }
+
+  const asset = await Asset.create({
+    userId,
+    name,
+    url: urls[0]!,
+    type: 'presenter',
+    metadata: { collectionId, urls, count: urls.length, source: 'avatars-upload' },
+  });
+
+  return { collectionId, assetId: (asset._id as { toString(): string }).toString(), name, urls, count: urls.length };
+}
 
 // Port of thumbpinclient's src/app/api/avatars/re/route.js, moved here for
 // two reasons: (1) it needs no per-request auth hop back out to this same
