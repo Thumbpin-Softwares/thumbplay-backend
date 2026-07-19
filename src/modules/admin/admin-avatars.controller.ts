@@ -5,10 +5,8 @@ import {
   createCollection,
   deleteCollection,
   setThumbnail,
-  AdminAvatarType,
 } from './admin-avatars.service';
 
-const VALID_TYPES: AdminAvatarType[] = ['product', 'real-estate'];
 const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/jpg']);
 
 // GET /admin/avatars — list all collections, or ?collectionId= for one with its full file list.
@@ -32,15 +30,10 @@ export async function list(req: Request, res: Response): Promise<void> {
 // POST /admin/avatars — multipart: files[], type, name.
 export async function create(req: Request, res: Response): Promise<void> {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-  const type = req.body?.type as AdminAvatarType;
   const name = (req.body?.name as string) || `Collection_${Date.now()}`;
 
   if (files.length === 0) {
     res.status(400).json({ error: 'files are required' });
-    return;
-  }
-  if (!VALID_TYPES.includes(type)) {
-    res.status(400).json({ error: "type must be 'product' or 'real-estate'" });
     return;
   }
   const invalidFile = files.find((f) => !ALLOWED_MIME_TYPES.has(f.mimetype));
@@ -51,7 +44,7 @@ export async function create(req: Request, res: Response): Promise<void> {
 
   try {
     const collection = await createCollection({
-      type,
+      type: 'real-estate',
       name,
       files: files.map((f) => ({ buffer: f.buffer, contentType: f.mimetype, originalName: f.originalname })),
     });

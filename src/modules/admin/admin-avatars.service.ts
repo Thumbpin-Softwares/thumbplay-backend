@@ -23,7 +23,7 @@ const CONCURRENCY = 10;
 const CACHE_KEY = 'admin-avatars:v1';
 const CACHE_TTL_MS = 60 * 1000; // short — this data changes whenever an admin uploads/deletes
 
-export type AdminAvatarType = 'product' | 'real-estate';
+export type AdminAvatarType = 'real-estate';
 
 export interface AdminAvatarFile {
   key: string;
@@ -87,7 +87,7 @@ async function scanCollections(): Promise<AdminAvatarCollection[]> {
       key: obj.Key,
       collectionId: h.Metadata?.['collection-id'] ?? null,
       collectionName: h.Metadata?.['collection-name'] || 'Untitled',
-      type: (h.Metadata?.['type'] as AdminAvatarType) || 'product',
+      type: (h.Metadata?.['type'] as AdminAvatarType) || 'real-estate',
       fileIndex: parseInt(h.Metadata?.['file-index'] ?? '0', 10),
       uploadedAt: h.Metadata?.['uploaded-at'] || new Date().toISOString(),
     };
@@ -160,12 +160,9 @@ function invalidateCache(): void {
   cacheDelete(CACHE_KEY);
 }
 
-export async function listCollections(): Promise<{ collections: Omit<AdminAvatarCollection, 'files'>[]; total: number }> {
+export async function listCollections(): Promise<{ collections: AdminAvatarCollection[]; total: number }> {
   const all = await getCollectionsCached();
-  return {
-    collections: all.map(({ files: _files, ...summary }) => summary),
-    total: all.length,
-  };
+  return { collections: all, total: all.length };
 }
 
 export async function getCollection(collectionId: string): Promise<AdminAvatarCollection | null> {
@@ -192,7 +189,7 @@ export async function createCollection(params: {
     const file = files[i]!;
     const ext = file.originalName.includes('.') ? file.originalName.slice(file.originalName.lastIndexOf('.')) : '.png';
     const filename = `${collectionId}_${i + 1}${ext}`;
-    const key = type === 'real-estate' ? `Avatars/RE/${filename}` : `Avatars/${filename}`;
+    const key = `Avatars/RE/${filename}`;
 
     await s3.send(
       new PutObjectCommand({

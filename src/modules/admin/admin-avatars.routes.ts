@@ -41,12 +41,11 @@ const upload = multer({ storage: multer.memoryStorage() });
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [files, type]
+ *             required: [files]
  *             properties:
  *               files:
  *                 type: array
  *                 items: { type: string, format: binary }
- *               type: { type: string, enum: [product, real-estate] }
  *               name: { type: string }
  *     responses:
  *       200:
