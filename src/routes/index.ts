@@ -14,6 +14,7 @@ import exportsRoutes from '../modules/exports/exports.routes';
 import captionsRoutes from '../modules/captions/captions.routes';
 import assetRoutes from '../modules/asset/asset.routes';
 import userRoutes from '../modules/user/user.routes';
+import musicRoutes from '../modules/music/music.routes';
 
 const router : Router = Router();
 
@@ -32,5 +33,6 @@ router.use('/exports', exportsRoutes);
 router.use('/captions', captionsRoutes);
 router.use('/assets', assetRoutes);
 router.use('/user', userRoutes);
+router.use('/music-library', musicRoutes);
 
 export default router;

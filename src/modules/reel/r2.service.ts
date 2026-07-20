@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import crypto from 'node:crypto';
@@ -106,4 +106,42 @@ const MIME_TO_EXT: Record<string, string> = {
 
 export function extFromMime(mimeType = ''): string {
   return MIME_TO_EXT[mimeType] || mimeType.split('/')[1] || 'bin';
+}
+
+const MUSIC_PREFIX = 'Music/';
+const AUDIO_EXTS = new Set(['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac']);
+
+function trackNameFromKey(key: string): string {
+  const base = key.slice(key.lastIndexOf('/') + 1);
+  const noExt = base.slice(0, base.lastIndexOf('.'));
+  const cleaned = noExt
+    .replace(/-no-copyright(-music)?-?\d*$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+  const title = (cleaned || noExt).replace(/\b\w/g, (c) => c.toUpperCase());
+  return title || base;
+}
+
+export interface MusicTrack {
+  key: string;
+  name: string;
+  url: string;
+}
+
+// Music/ is a public R2 prefix, so tracks resolve to direct CDN URLs — no
+// presigning needed (mirrors thumbpinclient's lib/r2.js getAssetUrl fast path).
+export async function listMusicTracks(): Promise<MusicTrack[]> {
+  const list = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: MUSIC_PREFIX }));
+  const objects = list.Contents ?? [];
+
+  return objects
+    .filter((obj) => {
+      const key = obj.Key ?? '';
+      const ext = key.slice(key.lastIndexOf('.')).toLowerCase();
+      return AUDIO_EXTS.has(ext);
+    })
+    .map((obj) => {
+      const key = obj.Key as string;
+      return { key, name: trackNameFromKey(key), url: `${R2_PUBLIC_URL}/${key}` };
+    });
 }
