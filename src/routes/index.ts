@@ -11,6 +11,7 @@ import comedyReelRoutes from '../modules/comedy-reel/comedy-reel.routes';
 import reAvatarsRoutes from '../modules/re-avatars/re-avatars.routes';
 import modelTourRoutes from '../modules/model-tour/model-tour.routes';
 import exportsRoutes from '../modules/exports/exports.routes';
+import captionsRoutes from '../modules/captions/captions.routes';
 
 const router : Router = Router();
 
@@ -26,5 +27,6 @@ router.use('/comedy-reel', comedyReelRoutes);
 router.use('/avatars', reAvatarsRoutes);
 router.use('/model-tour', modelTourRoutes);
 router.use('/exports', exportsRoutes);
+router.use('/captions', captionsRoutes);
 
 export default router;
