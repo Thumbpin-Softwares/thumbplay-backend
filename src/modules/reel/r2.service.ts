@@ -1,14 +1,13 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import crypto from 'node:crypto';
 import { env } from '../../config/env';
 
-// Port of thumbpinclient/src/lib/r2.js + r2-upload.js, trimmed to what the
-// reel pipelines actually call: uploadToR2, buildUserKey, extFromMime,
-// resolveR2Url. getAssetUrl/getPresignedUploadUrl aren't used by these
-// pipelines (skipped). normalizeKeyframes (ffmpeg re-encode for the editor's
-// frame-accurate seeking) is also skipped — tied to the out-of-scope manual
-// editor; clips still upload and play back fine without it.
+// Port of thumbpinclient/src/lib/r2.js + r2-upload.js — everything the reel
+// pipelines and the asset module call: uploadToR2, buildUserKey, extFromMime,
+// resolveR2Url, getPresignedUploadUrl. getAssetUrl isn't used anywhere yet
+// (skipped).
 
 // requestHandler timeouts raised above the SDK default — rendered video
 // buffers can take a while to push over the wire.
@@ -62,6 +61,15 @@ export async function uploadToR2(
     }),
   );
   return `${R2_PUBLIC_URL}/${key}`;
+}
+
+// Mints a short-lived presigned PUT URL so the browser can upload a file
+// directly to R2, bypassing this server's own request body entirely — same
+// rationale as thumbpinclient's version (Vercel's serverless functions cap
+// request bodies at 4.5MB, well under what a real photo upload needs).
+export async function getPresignedUploadUrl(key: string, contentType: string, expiresIn = 300): Promise<string> {
+  const command = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType });
+  return getSignedUrl(s3, command, { expiresIn });
 }
 
 // Resolves an internal `/api/r2?key=...` proxy URL (as handed back by
