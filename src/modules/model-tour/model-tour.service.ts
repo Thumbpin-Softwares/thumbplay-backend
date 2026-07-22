@@ -58,9 +58,8 @@ function padTo4(urls: string[]): [string, string, string, string] {
 // generation internally — one call in, one video out) and re-uploads the
 // result to our own R2 rather than trusting fal's URL to stay valid
 // long-term, matching every other pipeline's convention.
-export async function callOmniHomeTourAndUpload(
+export async function callOmniHomeTour(
   input: OmniHomeTourInput,
-  userId: string,
   signal?: AbortSignal,
 ): Promise<string> {
   const [avatar_image1, avatar_image2, avatar_image3, avatar_image4] = padTo4(input.avatarImageUrls);
@@ -94,9 +93,5 @@ export async function callOmniHomeTourAndUpload(
   const falVideoUrl = data?.video?.url;
   if (!falVideoUrl) throw new Error('omni-hometour-pipeline returned no video URL');
 
-  const videoRes = await fetch(falVideoUrl, signal ? { signal } : {});
-  if (!videoRes.ok) throw new Error(`Failed to fetch generated video: ${videoRes.status}`);
-  const videoBuf = Buffer.from(await videoRes.arrayBuffer());
-  const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
-  return uploadToR2(videoBuf, key, 'video/mp4');
+  return falVideoUrl;
 }

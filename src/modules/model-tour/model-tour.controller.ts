@@ -1,10 +1,11 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthedRequest } from '../auth/auth.types';
 import { ModelTourJob } from './model-tour-job.model';
 import { Asset } from '../asset/asset.model';
 import { consumeCreditsForAction, refundCreditsForAction, ConsumeDebit } from '../credit/credit.service';
 import { startSse } from '../reel/sse';
-import { uploadPropertyImage, callOmniHomeTourAndUpload } from './model-tour.service';
+import { uploadPropertyImage, callOmniHomeTour } from './model-tour.service';
+import { uploadToR2, buildUserKey } from '../reel/r2.service';
 
 const CREDIT_ACTION = 'real_estate_video';
 const LOG = '[ModelTour]';
@@ -109,21 +110,44 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     const { send, close, signal } = startSse(req, res);
 
     try {
-      send({ type: 'generating', message: 'Generating your home tour video…' });
+      send({ type: 'generating', message: 'Generating base video via fal.ai…' });
 
-      const videoUrl = await callOmniHomeTourAndUpload(inputs, userId, signal);
+      const falVideoUrl = await callOmniHomeTour(inputs, signal);
 
-      await Asset.create({
-        userId,
-        name: `Home Tour — ${propertyName}`,
-        url: videoUrl,
-        type: 'video',
-        metadata: { source: 'model-tour', jobId },
+      send({ type: 'processing', message: 'Sending to external workflow for processing…' });
+
+      const n8nWebhookUrl = 'https://wrk-413d.apps.excloud.co.in/webhook-test/366dbdd2-7128-4265-9e91-55cdf8c9daf2';
+      const webhookRes = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          userId,
+          videoUrl: falVideoUrl,
+        }),
       });
 
-      await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', resultUrl: videoUrl } });
+      if (!webhookRes.ok) {
+        throw new Error(`Failed to trigger external workflow: ${webhookRes.statusText}`);
+      }
 
-      send({ type: 'done', resultUrl: videoUrl });
+      send({ type: 'processing', message: 'Enhancing video in external workflow…' });
+
+      let isDone = false;
+      while (!isDone && !signal.aborted) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const job = await ModelTourJob.findOne({ jobId }).lean();
+        if (!job) break;
+
+        if (job.status === 'done') {
+          send({ type: 'done', resultUrl: job.resultUrl });
+          isDone = true;
+        } else if (job.status === 'error') {
+          throw new Error(job.error || 'External workflow failed');
+        }
+      }
+
       close();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed';
@@ -204,3 +228,56 @@ export async function listGenerations(req: AuthedRequest, res: Response): Promis
 
   res.status(200).json({ jobs, total, page, totalPages: Math.ceil(total / limit) });
 }
+
+// POST /model-tour/webhook — called by n8n with multipart/form-data containing final video
+export async function handleN8nWebhook(req: Request, res: Response): Promise<void> {
+  try {
+    const files = (req as unknown as { files?: UploadFiles }).files;
+    const file = files?.file?.[0];
+    const jobId = req.body?.jobId;
+    const userId = req.body?.userId;
+
+    if (!file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+    if (!jobId || !userId) {
+      res.status(400).json({ error: 'Missing jobId or userId' });
+      return;
+    }
+
+    const job = await ModelTourJob.findOne({ jobId });
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    // Upload the received video to R2
+    const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
+    const videoUrl = await uploadToR2(file.buffer, key, file.mimetype || 'video/mp4');
+
+    // Create Asset
+    await Asset.create({
+      userId,
+      name: `Home Tour — ${job.inputs.propertyName}`,
+      url: videoUrl,
+      type: 'video',
+      metadata: { source: 'model-tour', jobId },
+    });
+
+    // Mark job as done
+    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', resultUrl: videoUrl } });
+
+    res.status(200).json({ success: true, videoUrl });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Webhook processing failed';
+    console.error(`${LOG} webhook error:`, error);
+
+    const jobId = req.body?.jobId;
+    if (jobId) {
+      await ModelTourJob.updateOne({ jobId }, { $set: { status: 'error', error: message } });
+    }
+    res.status(500).json({ error: message });
+  }
+}
+

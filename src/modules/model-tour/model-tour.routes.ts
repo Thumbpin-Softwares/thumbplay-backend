@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadProperty, generate, getJob, listGenerations } from './model-tour.controller';
+import { uploadProperty, generate, getJob, listGenerations, handleN8nWebhook } from './model-tour.controller';
 import { requireAuth } from '../auth/auth.middleware';
 
 const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 const propertyUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
+const webhookUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
 
 // Avatar collection upload moved to the common /avatars/upload endpoint
 // (re-avatars module) — every template posts there now, not here.
@@ -36,6 +37,29 @@ const propertyUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
  *         description: Invalid input
  */
 router.post('/upload/property', requireAuth, propertyUploadField, uploadProperty);
+
+/**
+ * @openapi
+ * /model-tour/webhook:
+ *   post:
+ *     summary: Webhook for n8n to send the final video
+ *     tags: [Model Tour]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file, jobId, userId]
+ *             properties:
+ *               file: { type: string, format: binary }
+ *               jobId: { type: string }
+ *               userId: { type: string }
+ *     responses:
+ *       200:
+ *         description: Video processed
+ */
+router.post('/webhook', webhookUploadField, handleN8nWebhook);
 
 /**
  * @openapi
