@@ -265,20 +265,21 @@ export async function listGenerations(req: AuthedRequest, res: Response): Promis
   res.status(200).json({ jobs, total, page, totalPages: Math.ceil(total / limit) });
 }
 
-// POST /model-tour/webhook — called by n8n with multipart/form-data containing final video
+// POST /model-tour/webhook — called by n8n with JSON body containing final video URL.
+// n8n sends: { jobId, userId, videoUrl } where videoUrl is the URL of the processed video.
+// The backend downloads the video from the URL and uploads it to R2.
 export async function handleN8nWebhook(req: Request, res: Response): Promise<void> {
   try {
-    const files = (req as unknown as { files?: UploadFiles }).files;
-    const file = files?.file?.[0];
     const jobId = req.body?.jobId;
     const userId = req.body?.userId;
+    const videoUrl: string = req.body?.videoUrl || '';
 
-    if (!file) {
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
-    }
     if (!jobId || !userId) {
       res.status(400).json({ error: 'Missing jobId or userId' });
+      return;
+    }
+    if (!videoUrl) {
+      res.status(400).json({ error: 'Missing videoUrl in request body' });
       return;
     }
 
@@ -288,23 +289,32 @@ export async function handleN8nWebhook(req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Upload the received video to R2
-    const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
-    const videoUrl = await uploadToR2(file.buffer, key, file.mimetype || 'video/mp4');
+    // Download the video from the URL n8n provided
+    console.log(`${LOG} Downloading final video from n8n: ${videoUrl}`);
+    const videoResponse = await fetch(videoUrl);
+    if (!videoResponse.ok) {
+      throw new Error(`Failed to download video from URL: HTTP ${videoResponse.status}`);
+    }
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
 
-    // Create Asset
+    // Upload to R2
+    const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
+    const r2VideoUrl = await uploadToR2(videoBuffer, key, 'video/mp4');
+
+    // Create Asset in the user's library
     await Asset.create({
       userId,
       name: `Home Tour — ${job.propertyName}`,
-      url: videoUrl,
+      url: r2VideoUrl,
       type: 'video',
       metadata: { source: 'model-tour', jobId },
     });
 
-    // Mark job as done
-    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', resultUrl: videoUrl } });
+    // Mark job as done — the SSE polling loop in /generate will pick this up
+    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', resultUrl: r2VideoUrl } });
 
-    res.status(200).json({ success: true, videoUrl });
+    console.log(`${LOG} Job ${jobId} completed. Video saved to R2: ${r2VideoUrl}`);
+    res.status(200).json({ success: true, videoUrl: r2VideoUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Webhook processing failed';
     console.error(`${LOG} webhook error:`, error);
