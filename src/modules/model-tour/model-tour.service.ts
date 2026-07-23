@@ -65,33 +65,18 @@ export async function callOmniHomeTour(
   const [avatar_image1, avatar_image2, avatar_image3, avatar_image4] = padTo4(input.avatarImageUrls);
   const [property_image1, property_image2, property_image3, property_image4] = padTo4(input.propertyImageUrls);
 
-  const result = await fal.subscribe('workflows/thumbpincreatives/omni-hometour-pipeline', {
-    input: {
-      avatar_image1,
-      avatar_image2,
-      avatar_image3,
-      avatar_image4,
-      property_image1,
-      property_image2,
-      property_image3,
-      property_image4,
-      property_name: input.propertyName,
-      location_landmarks: input.locationLandmarks ?? '',
-      connectivity: input.connectivity ?? '',
-      language: input.language ?? '',
-      tier_class: input.tierClass ?? '',
-      carpet_area: input.carpetArea ?? '',
-      amenities: input.amenities ?? '',
-      tonality: input.tonality ?? '',
-      vibe: input.vibe ?? '',
-    },
-    logs: false,
-    ...(signal ? { abortSignal: signal } : {}),
-  });
-
-  const data = result?.data as { video?: { url?: string } } | undefined;
-  const falVideoUrl = data?.video?.url;
-  if (!falVideoUrl) throw new Error('omni-hometour-pipeline returned no video URL');
+  // ---------------------------------------------------------
+  // TEMPORARY MOCK FOR TESTING N8N WORKFLOW WITHOUT FAL CREDITS
+  // ---------------------------------------------------------
+  console.log("Skipping Fal.ai and returning mock video URL for testing n8n...");
+  
+  // Wait 3 seconds to simulate a quick generation
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  
+  // This must be a real MP4 URL so the Splitter can download it!
+  const falVideoUrl = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4";
+  return falVideoUrl;
+  // ---------------------------------------------------------
 
   return falVideoUrl;
 }
