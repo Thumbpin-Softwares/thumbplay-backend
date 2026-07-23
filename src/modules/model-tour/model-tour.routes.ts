@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadProperty, generate, getJob, listGenerations, handleN8nWebhook } from './model-tour.controller';
+import { uploadProperty, getScript, generate, getJob, listGenerations, handleN8nWebhook } from './model-tour.controller';
 import { requireAuth } from '../auth/auth.middleware';
 
 const router: Router = Router();
@@ -63,13 +63,14 @@ router.post('/webhook', webhookUploadField, handleN8nWebhook);
 
 /**
  * @openapi
- * /model-tour/generate:
+ * /model-tour/script:
  *   post:
- *     summary: Generate a home-tour video via fal's omni-hometour-pipeline workflow
+ *     summary: Generate the model-tour script JSON (checkpoint step) via the n8n workflow
  *     description: >
- *       Streams progress as Server-Sent Events. Property/avatar images must already be
- *       uploaded (via upload/property and upload/avatar) — this endpoint takes their URLs,
- *       not files. Charges the `real_estate_video` credit action up front, refunded on failure.
+ *       Synchronous — n8n predicts avatar gender from images, merges the form inputs, builds
+ *       the master prompt for the given property type, and responds with the merged script
+ *       JSON. The frontend shows this in the finalize step, where it can be edited before
+ *       being sent to /model-tour/generate.
  *     tags: [Model Tour]
  *     security:
  *       - cookieAuth: []
@@ -79,10 +80,10 @@ router.post('/webhook', webhookUploadField, handleN8nWebhook);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [jobId, propertyName, avatarImageUrls, propertyImageUrls]
+ *             required: [propertyName, avatarImageUrls, propertyImageUrls]
  *             properties:
- *               jobId: { type: string, description: "Client-generated UUID, must be unique" }
  *               propertyName: { type: string }
+ *               type: { type: string, enum: [residential, commercial, plotted] }
  *               locationLandmarks: { type: string }
  *               connectivity: { type: string }
  *               language: { type: string }
@@ -93,6 +94,39 @@ router.post('/webhook', webhookUploadField, handleN8nWebhook);
  *               vibe: { type: string }
  *               avatarImageUrls: { type: array, items: { type: string }, minItems: 1, maxItems: 4 }
  *               propertyImageUrls: { type: array, items: { type: string }, minItems: 1, maxItems: 4 }
+ *     responses:
+ *       200:
+ *         description: The generated script JSON
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Not authenticated
+ */
+router.post('/script', requireAuth, getScript);
+
+/**
+ * @openapi
+ * /model-tour/generate:
+ *   post:
+ *     summary: Generate a home-tour video via the n8n model-tour workflow
+ *     description: >
+ *       Streams progress as Server-Sent Events. Takes the script JSON from /model-tour/script
+ *       (as edited by the user in the finalize step) and sends it back to n8n to actually
+ *       render the video. Charges the `real_estate_video` credit action up front, refunded
+ *       on failure.
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [jobId, script]
+ *             properties:
+ *               jobId: { type: string, description: "Client-generated UUID, must be unique" }
+ *               script: { type: object, description: "The (possibly edited) JSON returned by /model-tour/script" }
  *     responses:
  *       200:
  *         description: text/event-stream of generation progress

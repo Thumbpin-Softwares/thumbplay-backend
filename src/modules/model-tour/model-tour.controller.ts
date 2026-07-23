@@ -4,14 +4,87 @@ import { ModelTourJob } from './model-tour-job.model';
 import { Asset } from '../asset/asset.model';
 import { consumeCreditsForAction, refundCreditsForAction, ConsumeDebit } from '../credit/credit.service';
 import { startSse } from '../reel/sse';
-import { uploadPropertyImage, callOmniHomeTour } from './model-tour.service';
+import {
+  uploadPropertyImage,
+  generateModelTourScript,
+  triggerModelTourGeneration,
+  OmniHomeTourInput,
+  PropertyType,
+} from './model-tour.service';
 import { uploadToR2, buildUserKey } from '../reel/r2.service';
 
 const CREDIT_ACTION = 'real_estate_video';
 const LOG = '[ModelTour]';
 const MAX_IMAGES = 4;
+const PROPERTY_TYPES = new Set<PropertyType>(['residential', 'commercial', 'plotted']);
 
 type UploadFiles = Record<string, Express.Multer.File[]>;
+
+// Shared by /script and /generate — both take the same raw form fields as
+// their starting point (the latter only when there's no edited script yet).
+function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHomeTourInput } | { error: string } {
+  const propertyName = ((body.propertyName as string) || '').toString().trim();
+  const avatarImageUrls: string[] = Array.isArray(body.avatarImageUrls)
+    ? body.avatarImageUrls.filter((u: unknown) => typeof u === 'string')
+    : [];
+  const propertyImageUrls: string[] = Array.isArray(body.propertyImageUrls)
+    ? body.propertyImageUrls.filter((u: unknown) => typeof u === 'string')
+    : [];
+  const type = ((body.type as string) || '').toString().trim().toLowerCase() as PropertyType | '';
+
+  if (!propertyName) return { error: 'propertyName is required' };
+  if (type && !PROPERTY_TYPES.has(type)) {
+    return { error: `type must be one of: ${[...PROPERTY_TYPES].join(', ')}` };
+  }
+  if (avatarImageUrls.length < 1 || avatarImageUrls.length > MAX_IMAGES) {
+    return { error: `avatarImageUrls must have between 1 and ${MAX_IMAGES} URLs` };
+  }
+  if (propertyImageUrls.length < 1 || propertyImageUrls.length > MAX_IMAGES) {
+    return { error: `propertyImageUrls must have between 1 and ${MAX_IMAGES} URLs` };
+  }
+
+  const input: OmniHomeTourInput = {
+    propertyName,
+    ...(type ? { type } : {}),
+    locationLandmarks: ((body.locationLandmarks as string) || '').toString(),
+    connectivity: ((body.connectivity as string) || '').toString(),
+    language: ((body.language as string) || '').toString(),
+    tierClass: ((body.tierClass as string) || '').toString(),
+    carpetArea: ((body.carpetArea as string) || '').toString(),
+    amenities: ((body.amenities as string) || '').toString(),
+    tonality: ((body.tonality as string) || '').toString(),
+    vibe: ((body.vibe as string) || '').toString(),
+    avatarImageUrls,
+    propertyImageUrls,
+  };
+
+  return { input };
+}
+
+// POST /model-tour/script — the "checkpoint" step: raw form fields in,
+// n8n's merged script JSON back out for the finalize step to show/edit.
+export async function getScript(req: AuthedRequest, res: Response): Promise<void> {
+  const userId = req.user?._id?.toString();
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const parsed = parseOmniHomeTourInput(req.body ?? {});
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  try {
+    const script = await generateModelTourScript(parsed.input);
+    res.status(200).json({ script });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to generate script';
+    console.error(`${LOG} getScript error:`, error);
+    res.status(500).json({ error: message });
+  }
+}
 
 // POST /model-tour/upload/property — multipart single `file` + name.
 export async function uploadProperty(req: AuthedRequest, res: Response): Promise<void> {
@@ -40,7 +113,9 @@ export async function uploadProperty(req: AuthedRequest, res: Response): Promise
   }
 }
 
-// POST /model-tour/generate — JSON body, images already uploaded (URLs in hand).
+// POST /model-tour/generate — JSON body: { jobId, script }. `script` is the
+// JSON returned by /model-tour/script, as (possibly) edited by the user in
+// the finalize step — we pass it straight back to n8n, we don't reshape it.
 export async function generate(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   let debit: ConsumeDebit | undefined;
@@ -52,46 +127,24 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
 
   const body = req.body ?? {};
   const jobId = (body.jobId || '').toString().trim();
-  const propertyName = (body.propertyName || '').toString().trim();
-  const avatarImageUrls: string[] = Array.isArray(body.avatarImageUrls) ? body.avatarImageUrls.filter((u: unknown) => typeof u === 'string') : [];
-  const propertyImageUrls: string[] = Array.isArray(body.propertyImageUrls) ? body.propertyImageUrls.filter((u: unknown) => typeof u === 'string') : [];
+  const script = body.script;
 
   if (!jobId) {
     res.status(400).json({ error: 'jobId is required' });
     return;
   }
-  if (!propertyName) {
-    res.status(400).json({ error: 'propertyName is required' });
+  if (!script || typeof script !== 'object' || Array.isArray(script)) {
+    res.status(400).json({ error: 'script is required' });
     return;
   }
-  if (avatarImageUrls.length < 1 || avatarImageUrls.length > MAX_IMAGES) {
-    res.status(400).json({ error: `avatarImageUrls must have between 1 and ${MAX_IMAGES} URLs` });
-    return;
-  }
-  if (propertyImageUrls.length < 1 || propertyImageUrls.length > MAX_IMAGES) {
-    res.status(400).json({ error: `propertyImageUrls must have between 1 and ${MAX_IMAGES} URLs` });
-    return;
-  }
+
+  const propertyName = ((script.property_name ?? script.propertyName ?? '') as string).toString().trim() || 'Untitled Property';
 
   const existingJob = await ModelTourJob.findOne({ jobId }).lean();
   if (existingJob) {
     res.status(409).json({ error: 'Job already exists', jobId });
     return;
   }
-
-  const inputs = {
-    propertyName,
-    locationLandmarks: (body.locationLandmarks || '').toString(),
-    connectivity: (body.connectivity || '').toString(),
-    language: (body.language || '').toString(),
-    tierClass: (body.tierClass || '').toString(),
-    carpetArea: (body.carpetArea || '').toString(),
-    amenities: (body.amenities || '').toString(),
-    tonality: (body.tonality || '').toString(),
-    vibe: (body.vibe || '').toString(),
-    avatarImageUrls,
-    propertyImageUrls,
-  };
 
   try {
     const creditResult = await consumeCreditsForAction({
@@ -105,33 +158,16 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     }
     debit = creditResult.debit;
 
-    await ModelTourJob.create({ jobId, userId, status: 'running', inputs });
+    await ModelTourJob.create({ jobId, userId, propertyName, status: 'running', inputs: script });
 
     const { send, close, signal } = startSse(req, res);
 
     try {
-      send({ type: 'generating', message: 'Generating base video via fal.ai…' });
+      send({ type: 'generating', message: 'Sending to workflow for generation…' });
 
-      const falVideoUrl = await callOmniHomeTour(inputs, signal);
+      await triggerModelTourGeneration(jobId, userId, script, signal);
 
-      send({ type: 'processing', message: 'Sending to external workflow for processing…' });
-
-      const n8nWebhookUrl = 'https://wrk-413d.apps.excloud.co.in/webhook-test/366dbdd2-7128-4265-9e91-55cdf8c9daf2';
-      const webhookRes = await fetch(n8nWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId,
-          userId,
-          videoUrl: falVideoUrl,
-        }),
-      });
-
-      if (!webhookRes.ok) {
-        throw new Error(`Failed to trigger external workflow: ${webhookRes.statusText}`);
-      }
-
-      send({ type: 'processing', message: 'Enhancing video in external workflow…' });
+      send({ type: 'processing', message: 'Generating your home tour video…' });
 
       let isDone = false;
       while (!isDone && !signal.aborted) {
@@ -259,7 +295,7 @@ export async function handleN8nWebhook(req: Request, res: Response): Promise<voi
     // Create Asset
     await Asset.create({
       userId,
-      name: `Home Tour — ${job.inputs.propertyName}`,
+      name: `Home Tour — ${job.propertyName}`,
       url: videoUrl,
       type: 'video',
       metadata: { source: 'model-tour', jobId },

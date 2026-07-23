@@ -1,4 +1,3 @@
-import { fal } from '../reel/fal-client';
 import { uploadToR2, buildUserKey, extFromMime } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
 
@@ -36,10 +35,13 @@ export async function uploadPropertyImage(userId: string, file: UploadedImage, n
   return asset;
 }
 
+export type PropertyType = 'residential' | 'commercial' | 'plotted';
+
 export interface OmniHomeTourInput {
   avatarImageUrls: string[];
   propertyImageUrls: string[];
   propertyName: string;
+  type?: PropertyType;
   locationLandmarks?: string;
   connectivity?: string;
   language?: string;
@@ -54,19 +56,31 @@ function padTo4(urls: string[]): [string, string, string, string] {
   return [urls[0] ?? '', urls[1] ?? '', urls[2] ?? '', urls[3] ?? ''];
 }
 
-// Calls fal's omni-hometour-pipeline workflow (does scripting/TTS/video
-// generation internally — one call in, one video out) and re-uploads the
-// result to our own R2 rather than trusting fal's URL to stay valid
-// long-term, matching every other pipeline's convention.
-export async function callOmniHomeTour(
+// Our n8n instance owns the whole home-tour pipeline, split across two calls
+// to the same webhook:
+//   1. generateModelTourScript — raw form inputs in, n8n predicts gender from
+//      the images, merges everything, builds the master prompt per property
+//      type, and responds synchronously with the merged script JSON. The
+//      finalize step shows/lets the user edit this JSON — we never interpret
+//      its shape, it's n8n's to define.
+//   2. triggerModelTourGeneration — the (possibly edited) script JSON is sent
+//      straight back, flat-merged into the request body; n8n recognizes it's
+//      already-built script and proceeds to actually render the video,
+//      reporting the result back asynchronously via POST /model-tour/webhook
+//      (see handleN8nWebhook).
+const N8N_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714';
+
+export async function generateModelTourScript(
   input: OmniHomeTourInput,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<Record<string, unknown>> {
   const [avatar_image1, avatar_image2, avatar_image3, avatar_image4] = padTo4(input.avatarImageUrls);
   const [property_image1, property_image2, property_image3, property_image4] = padTo4(input.propertyImageUrls);
 
-  const result = await fal.subscribe('workflows/thumbpincreatives/omni-hometour-pipeline', {
-    input: {
+  const res = await fetch(N8N_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       avatar_image1,
       avatar_image2,
       avatar_image3,
@@ -76,6 +90,7 @@ export async function callOmniHomeTour(
       property_image3,
       property_image4,
       property_name: input.propertyName,
+      type: input.type ?? '',
       location_landmarks: input.locationLandmarks ?? '',
       connectivity: input.connectivity ?? '',
       language: input.language ?? '',
@@ -84,14 +99,45 @@ export async function callOmniHomeTour(
       amenities: input.amenities ?? '',
       tonality: input.tonality ?? '',
       vibe: input.vibe ?? '',
-    },
-    logs: false,
-    ...(signal ? { abortSignal: signal } : {}),
+    }),
+    ...(signal ? { signal } : {}),
   });
 
-  const data = result?.data as { video?: { url?: string } } | undefined;
-  const falVideoUrl = data?.video?.url;
-  if (!falVideoUrl) throw new Error('omni-hometour-pipeline returned no video URL');
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`[ModelTour] n8n script webhook ${res.status} ${res.statusText}:`, body);
+    throw new Error(`Failed to generate model-tour script: ${res.statusText}${body ? ` — ${body}` : ''}`);
+  }
 
-  return falVideoUrl;
+  // n8n's "Respond to Webhook" node (JSON mode fed by a normal node's
+  // output) wraps the result as an array of items — [{...}] — rather than
+  // returning the object directly, so unwrap that shape if present.
+  let script: unknown = await res.json();
+  if (Array.isArray(script)) script = script[0];
+
+  if (!script || typeof script !== 'object' || Array.isArray(script)) {
+    throw new Error('Script workflow returned an invalid response');
+  }
+
+  return script as Record<string, unknown>;
+}
+
+export async function triggerModelTourGeneration(
+  jobId: string,
+  userId: string,
+  script: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(N8N_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobId, userId, ...script }),
+    ...(signal ? { signal } : {}),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`[ModelTour] n8n generate webhook ${res.status} ${res.statusText}:`, body);
+    throw new Error(`Failed to trigger model-tour generation: ${res.statusText}${body ? ` — ${body}` : ''}`);
+  }
 }

@@ -51,7 +51,7 @@ const singleFile = upload.single('file');
  *       200:
  *         description: Updated asset
  *   delete:
- *     summary: Delete one asset (?id=) or many (body { ids: [...] })
+ *     summary: "Delete one asset (?id=) or many (body { ids: [...] })"
  *     tags: [Assets]
  *     security:
  *       - cookieAuth: []
