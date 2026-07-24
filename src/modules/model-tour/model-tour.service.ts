@@ -56,19 +56,17 @@ function padTo4(urls: string[]): [string, string, string, string] {
   return [urls[0] ?? '', urls[1] ?? '', urls[2] ?? '', urls[3] ?? ''];
 }
 
-// Our n8n instance owns the whole home-tour pipeline, split across two calls
-// to the same webhook:
-//   1. generateModelTourScript — raw form inputs in, n8n predicts gender from
-//      the images, merges everything, builds the master prompt per property
-//      type, and responds synchronously with the merged script JSON. The
-//      finalize step shows/lets the user edit this JSON — we never interpret
-//      its shape, it's n8n's to define.
-//   2. triggerModelTourGeneration — the (possibly edited) script JSON is sent
-//      straight back, flat-merged into the request body; n8n recognizes it's
-//      already-built script and proceeds to actually render the video,
-//      reporting the result back asynchronously via POST /model-tour/webhook
-//      (see handleN8nWebhook).
-const N8N_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714';
+// Step 1: Script generation webhook — raw form inputs → n8n returns storyboard JSON.
+const N8N_SCRIPT_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714';
+
+// Step 2: Video generation webhook — (possibly edited) script JSON → n8n renders
+// all 6 video clips with voice and merges them, returns { video: { url } }.
+const N8N_VIDEO_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/426fc4a4-44b9-4527-8ac5-3fe3e3ed9ce3';
+
+// Step 3: Splitter + voice-change webhook — sends merged video URL + jobId + userId.
+// This n8n workflow splits audio, changes voice, re-merges, then POSTs the final
+// video URL back to our backend at POST /api/v1/model-tour/webhook.
+const N8N_SPLITTER_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook-test/366dbdd2-7128-4265-9e91-55cdf8c9daf2';
 
 export async function generateModelTourScript(
   input: OmniHomeTourInput,
@@ -77,7 +75,7 @@ export async function generateModelTourScript(
   const [avatar_image1, avatar_image2, avatar_image3, avatar_image4] = padTo4(input.avatarImageUrls);
   const [property_image1, property_image2, property_image3, property_image4] = padTo4(input.propertyImageUrls);
 
-  const res = await fetch(N8N_WEBHOOK_URL, {
+  const res = await fetch(N8N_SCRIPT_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -128,16 +126,48 @@ export async function triggerModelTourGeneration(
   script: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(N8N_WEBHOOK_URL, {
+  // ── Step 2: Send edited script to n8n video generation workflow ────────────
+  console.log(`[ModelTour] Calling n8n video generation webhook for job ${jobId}`);
+  const videoRes = await fetch(N8N_VIDEO_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jobId, userId, ...script }),
     ...(signal ? { signal } : {}),
   });
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    console.error(`[ModelTour] n8n generate webhook ${res.status} ${res.statusText}:`, body);
-    throw new Error(`Failed to trigger model-tour generation: ${res.statusText}${body ? ` — ${body}` : ''}`);
+  if (!videoRes.ok) {
+    const body = await videoRes.text().catch(() => '');
+    console.error(`[ModelTour] n8n video webhook ${videoRes.status} ${videoRes.statusText}:`, body);
+    throw new Error(`Failed to trigger model-tour generation: ${videoRes.statusText}${body ? ` — ${body}` : ''}`);
   }
+
+  // n8n returns the merged video — unwrap array if needed
+  let videoData: unknown = await videoRes.json();
+  if (Array.isArray(videoData)) videoData = videoData[0];
+
+  const mergedVideoUrl = (videoData as { video?: { url?: string } })?.video?.url;
+  if (!mergedVideoUrl) {
+    throw new Error('n8n video generation returned no video URL');
+  }
+  console.log(`[ModelTour] Got merged video from n8n: ${mergedVideoUrl}`);
+
+  // ── Step 3: Forward to splitter/voice-changer n8n workflow ─────────────────
+  // This is fire-and-forget from the backend's perspective — the splitter
+  // workflow will call our POST /api/v1/model-tour/webhook when it's done,
+  // which marks the job as done and unblocks the SSE polling loop.
+  console.log(`[ModelTour] Forwarding to splitter webhook for job ${jobId}`);
+  const splitterRes = await fetch(N8N_SPLITTER_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobId, userId, videoUrl: mergedVideoUrl }),
+  });
+
+  if (!splitterRes.ok) {
+    const body = await splitterRes.text().catch(() => '');
+    console.error(`[ModelTour] Splitter webhook ${splitterRes.status}:`, body);
+    throw new Error(`Failed to hand off to splitter: ${splitterRes.statusText}`);
+  }
+
+  console.log(`[ModelTour] Job ${jobId} handed off to splitter — waiting for backend webhook callback`);
 }
+
