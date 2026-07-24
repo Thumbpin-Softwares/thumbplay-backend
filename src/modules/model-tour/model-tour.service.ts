@@ -128,11 +128,15 @@ export async function triggerModelTourGeneration(
 ): Promise<void> {
   // ── Step 2: Send edited script to n8n video generation workflow ────────────
   console.log(`[ModelTour] Calling n8n video generation webhook for job ${jobId}`);
+  // Create a 10-minute timeout signal so fetch doesn't abort while n8n renders 6 video scenes
+  const timeoutSignal = AbortSignal.timeout(10 * 60 * 1000);
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+
   const videoRes = await fetch(N8N_VIDEO_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jobId, userId, ...script }),
-    ...(signal ? { signal } : {}),
+    signal: combinedSignal,
   });
 
   if (!videoRes.ok) {
