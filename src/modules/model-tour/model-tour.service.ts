@@ -1,6 +1,23 @@
 import { uploadToR2, buildUserKey, extFromMime } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
 
+// n8n video rendering takes 2-4 minutes. Node's built-in fetch uses undici, which
+// has a default 30-second headersTimeout. We set undici's global dispatcher timeout
+// to 10 minutes (600,000ms) so fetch doesn't abort while waiting for n8n.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Agent, setGlobalDispatcher } = require('undici');
+  setGlobalDispatcher(
+    new Agent({
+      headersTimeout: 10 * 60 * 1000, // 10 minutes
+      bodyTimeout: 10 * 60 * 1000,    // 10 minutes
+      connectTimeout: 60 * 1000,
+    })
+  );
+} catch (e) {
+  console.warn('[ModelTour] Failed to set global undici dispatcher timeout:', e);
+}
+
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 const MAX_BYTES_PER_IMAGE = 10 * 1024 * 1024; // 10 MB
 
