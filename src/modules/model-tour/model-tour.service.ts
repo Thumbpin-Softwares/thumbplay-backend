@@ -1,5 +1,6 @@
 import { uploadToR2, buildUserKey, extFromMime } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
+import { env } from '../../config/env';
 
 // n8n video rendering takes 2-4 minutes. Node's built-in fetch uses undici, which
 // has a default 30-second headersTimeout. We set undici's global dispatcher timeout
@@ -83,7 +84,7 @@ const N8N_VIDEO_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/426fc
 // Step 3: Splitter + voice-change webhook — sends merged video URL + jobId + userId.
 // This n8n workflow splits audio, changes voice, re-merges, then POSTs the final
 // video URL back to our backend at POST /api/v1/model-tour/webhook.
-const N8N_SPLITTER_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook-test/366dbdd2-7128-4265-9e91-55cdf8c9daf2';
+const N8N_SPLITTER_WEBHOOK_URL = env.n8nSplitterWebhookUrl;
 
 export async function generateModelTourScript(
   input: OmniHomeTourInput,
@@ -191,4 +192,3 @@ export async function triggerModelTourGeneration(
 
   console.log(`[ModelTour] Job ${jobId} handed off to splitter — waiting for backend webhook callback`);
 }
-

@@ -93,4 +93,10 @@ export const env = {
   r2SecretAccessKey: required('R2_SECRET_ACCESS_KEY'),
   r2BucketName: required('R2_BUCKET_NAME'),
   r2PublicUrl: required('R2_PUBLIC_URL'),
+
+  // n8n workflows.
+  n8nSplitterWebhookUrl: optional(
+    'N8N_SPLITTER_WEBHOOK_URL',
+    'https://wrk-413d.apps.excloud.co.in/webhook/366dbdd2-7128-4265-9e91-55cdf8c9daf2',
+  ),
 } as const;
