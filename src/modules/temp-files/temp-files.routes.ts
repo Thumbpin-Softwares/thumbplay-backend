@@ -1,10 +1,21 @@
-import express, { Router } from 'express';
+import express, { NextFunction, Response, Router } from 'express';
 import multer from 'multer';
 import { requireAuth } from '../auth/auth.middleware';
+import { AuthedRequest } from '../auth/auth.types';
 import { create, serve } from './temp-files.controller';
 
 const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+function requireAuthOrTempFileSecret(req: AuthedRequest, res: Response, next: NextFunction): void {
+  const configuredSecret = process.env.TEMP_FILE_SECRET;
+  const sentSecret = req.headers['x-temp-file-secret'];
+  if (configuredSecret && sentSecret === configuredSecret) {
+    next();
+    return;
+  }
+  void requireAuth(req, res, next);
+}
 
 /**
  * @openapi
@@ -51,9 +62,12 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100
  */
 router.post(
   '/',
-  requireAuth,
+  requireAuthOrTempFileSecret,
   upload.single('file'),
-  express.raw({ type: 'application/octet-stream', limit: '100mb' }),
+  express.raw({
+    type: ['application/octet-stream', 'audio/*', 'video/*', 'image/*', 'application/pdf'],
+    limit: '100mb',
+  }),
   create,
 );
 

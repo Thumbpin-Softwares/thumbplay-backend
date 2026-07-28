@@ -14,6 +14,10 @@ function stringFrom(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
+function headerString(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 type LooseCreateOptions = {
   [Key in keyof Omit<CreateTempFileInput, 'buffer'>]?: Omit<CreateTempFileInput, 'buffer'>[Key] | undefined;
 };
@@ -34,8 +38,10 @@ export async function create(req: AuthedRequest, res: Response): Promise<void> {
     const expiresInSeconds =
       numberFrom(body.expiresInSeconds) ?? numberFrom(body.ttlSeconds) ?? numberFrom(query.expiresInSeconds);
     const expiresAt = stringFrom(body.expiresAt) ?? stringFrom(query.expiresAt);
-    const filename = stringFrom(body.filename) ?? stringFrom(query.filename);
-    const contentType = stringFrom(body.contentType) ?? stringFrom(query.contentType);
+    const filename =
+      stringFrom(body.filename) ?? stringFrom(query.filename) ?? headerString(req.headers['x-filename']);
+    const contentType =
+      stringFrom(body.contentType) ?? stringFrom(query.contentType) ?? headerString(req.headers['content-type']);
 
     if (uploadedFile) {
       const result = await createTempFile({
