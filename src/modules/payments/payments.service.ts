@@ -84,7 +84,7 @@ export async function createOrder({ userId, itemId }: CreateOrderInput): Promise
   const order = await razorpay.orders.create({
     amount: amountPaise,
     currency: 'INR',
-    receipt: `tp_${userId}_${Date.now()}`,
+    receipt: `r_${userId}_${Date.now()}`,
     // "notes" travel with the order and are copied onto the payment entity.
     // The webhook reads these — no session/DB lookup needed at that point.
     notes: {
