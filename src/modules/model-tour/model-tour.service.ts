@@ -82,6 +82,12 @@ function padTo4(urls: string[]): [string, string, string, string] {
   return [urls[0] ?? '', urls[1] ?? '', urls[2] ?? '', urls[3] ?? ''];
 }
 
+function optionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
 // Step 1: Script generation webhook — raw form inputs → n8n returns storyboard JSON.
 const N8N_SCRIPT_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714';
 
@@ -206,10 +212,11 @@ export async function triggerModelTourGeneration(
   // workflow will call our POST /api/v1/model-tour/webhook when it's done,
   // which marks the job as done and unblocks the SSE polling loop.
   console.log(`[ModelTour] Forwarding to splitter webhook for job ${jobId}`);
+  const gender = optionalString(script.gender);
   const splitterRes = await fetch(N8N_SPLITTER_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jobId, userId, videoUrl: mergedVideoUrl }),
+    body: JSON.stringify({ jobId, userId, videoUrl: mergedVideoUrl, ...(gender ? { gender } : {}) }),
   });
 
   if (!splitterRes.ok) {
