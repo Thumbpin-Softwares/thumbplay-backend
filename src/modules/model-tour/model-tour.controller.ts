@@ -31,6 +31,7 @@ function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHom
     ? body.propertyImageUrls.filter((u: unknown) => typeof u === 'string')
     : [];
   const type = ((body.type as string) || '').toString().trim().toLowerCase() as PropertyType | '';
+  const script = ((body.script as string) || '').toString().trim();
 
   if (!propertyName) return { error: 'propertyName is required' };
   if (type && !PROPERTY_TYPES.has(type)) {
@@ -46,6 +47,7 @@ function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHom
   const input: OmniHomeTourInput = {
     propertyName,
     ...(type ? { type } : {}),
+    ...(script ? { script } : {}),
     locationLandmarks: ((body.locationLandmarks as string) || '').toString(),
     connectivity: ((body.connectivity as string) || '').toString(),
     language: ((body.language as string) || '').toString(),
