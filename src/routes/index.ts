@@ -16,6 +16,7 @@ import assetRoutes from '../modules/asset/asset.routes';
 import userRoutes from '../modules/user/user.routes';
 import musicRoutes from '../modules/music/music.routes';
 import tempFilesRoutes from '../modules/temp-files/temp-files.routes';
+import paymentsRoutes from '../modules/payments/payments.routes';
 
 const router : Router = Router();
 
@@ -36,5 +37,6 @@ router.use('/assets', assetRoutes);
 router.use('/user', userRoutes);
 router.use('/music-library', musicRoutes);
 router.use('/temp-files', tempFilesRoutes);
+router.use('/payments', paymentsRoutes);
 
 export default router;

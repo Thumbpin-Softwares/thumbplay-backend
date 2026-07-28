@@ -99,4 +99,19 @@ export const env = {
     'N8N_SPLITTER_WEBHOOK_URL',
     'https://wrk-413d.apps.excloud.co.in/webhook/366dbdd2-7128-4265-9e91-55cdf8c9daf2',
   ),
+
+  // ---------------------------------------------------------------------------
+  // Razorpay payment gateway
+  // Get these from: https://dashboard.razorpay.com → Settings → API Keys
+  //
+  // razorpayKeyId     — public key, goes in the frontend too (NEXT_PUBLIC_RAZORPAY_KEY_ID)
+  // razorpayKeySecret — secret key, backend only — NEVER expose this to the browser
+  // razorpayWebhookSecret — from Dashboard → Webhooks → your webhook → Secret
+  //
+  // All three are optional: if unset, createOrder() returns a mock order so
+  // you can test the full UI flow without a real Razorpay account.
+  // ---------------------------------------------------------------------------
+  razorpayKeyId: optional('RAZORPAY_KEY_ID', ''),
+  razorpayKeySecret: optional('RAZORPAY_KEY_SECRET', ''),
+  razorpayWebhookSecret: optional('RAZORPAY_WEBHOOK_SECRET', ''),
 } as const;
