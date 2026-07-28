@@ -1,6 +1,23 @@
-import { fal } from '../reel/fal-client';
 import { uploadToR2, buildUserKey, extFromMime } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
+import { env } from '../../config/env';
+
+// n8n video rendering takes 2-4 minutes. Node's built-in fetch uses undici, which
+// has a default 30-second headersTimeout. We set undici's global dispatcher timeout
+// to 10 minutes (600,000ms) so fetch doesn't abort while waiting for n8n.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Agent, setGlobalDispatcher } = require('undici');
+  setGlobalDispatcher(
+    new Agent({
+      headersTimeout: 10 * 60 * 1000, // 10 minutes
+      bodyTimeout: 10 * 60 * 1000,    // 10 minutes
+      connectTimeout: 60 * 1000,
+    })
+  );
+} catch (e) {
+  console.warn('[ModelTour] Failed to set global undici dispatcher timeout:', e);
+}
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 const MAX_BYTES_PER_IMAGE = 10 * 1024 * 1024; // 10 MB
@@ -36,10 +53,13 @@ export async function uploadPropertyImage(userId: string, file: UploadedImage, n
   return asset;
 }
 
+export type PropertyType = 'residential' | 'commercial' | 'plotted';
+
 export interface OmniHomeTourInput {
   avatarImageUrls: string[];
   propertyImageUrls: string[];
   propertyName: string;
+  type?: PropertyType;
   locationLandmarks?: string;
   connectivity?: string;
   language?: string;
@@ -54,20 +74,29 @@ function padTo4(urls: string[]): [string, string, string, string] {
   return [urls[0] ?? '', urls[1] ?? '', urls[2] ?? '', urls[3] ?? ''];
 }
 
-// Calls fal's omni-hometour-pipeline workflow (does scripting/TTS/video
-// generation internally — one call in, one video out) and re-uploads the
-// result to our own R2 rather than trusting fal's URL to stay valid
-// long-term, matching every other pipeline's convention.
-export async function callOmniHomeTourAndUpload(
+// Step 1: Script generation webhook — raw form inputs → n8n returns storyboard JSON.
+const N8N_SCRIPT_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714';
+
+// Step 2: Video generation webhook — (possibly edited) script JSON → n8n renders
+// all 6 video clips with voice and merges them, returns { video: { url } }.
+const N8N_VIDEO_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/426fc4a4-44b9-4527-8ac5-3fe3e3ed9ce3';
+
+// Step 3: Splitter + voice-change webhook — sends merged video URL + jobId + userId.
+// This n8n workflow splits audio, changes voice, re-merges, then POSTs the final
+// video URL back to our backend at POST /api/v1/model-tour/webhook.
+const N8N_SPLITTER_WEBHOOK_URL = env.n8nSplitterWebhookUrl;
+
+export async function generateModelTourScript(
   input: OmniHomeTourInput,
-  userId: string,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<Record<string, unknown>> {
   const [avatar_image1, avatar_image2, avatar_image3, avatar_image4] = padTo4(input.avatarImageUrls);
   const [property_image1, property_image2, property_image3, property_image4] = padTo4(input.propertyImageUrls);
 
-  const result = await fal.subscribe('workflows/thumbpincreatives/omni-hometour-pipeline', {
-    input: {
+  const res = await fetch(N8N_SCRIPT_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       avatar_image1,
       avatar_image2,
       avatar_image3,
@@ -77,6 +106,7 @@ export async function callOmniHomeTourAndUpload(
       property_image3,
       property_image4,
       property_name: input.propertyName,
+      type: input.type ?? '',
       location_landmarks: input.locationLandmarks ?? '',
       connectivity: input.connectivity ?? '',
       language: input.language ?? '',
@@ -85,18 +115,80 @@ export async function callOmniHomeTourAndUpload(
       amenities: input.amenities ?? '',
       tonality: input.tonality ?? '',
       vibe: input.vibe ?? '',
-    },
-    logs: false,
-    ...(signal ? { abortSignal: signal } : {}),
+    }),
+    ...(signal ? { signal } : {}),
   });
 
-  const data = result?.data as { video?: { url?: string } } | undefined;
-  const falVideoUrl = data?.video?.url;
-  if (!falVideoUrl) throw new Error('omni-hometour-pipeline returned no video URL');
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`[ModelTour] n8n script webhook ${res.status} ${res.statusText}:`, body);
+    throw new Error(`Failed to generate model-tour script: ${res.statusText}${body ? ` — ${body}` : ''}`);
+  }
 
-  const videoRes = await fetch(falVideoUrl, signal ? { signal } : {});
-  if (!videoRes.ok) throw new Error(`Failed to fetch generated video: ${videoRes.status}`);
-  const videoBuf = Buffer.from(await videoRes.arrayBuffer());
-  const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
-  return uploadToR2(videoBuf, key, 'video/mp4');
+  // n8n's "Respond to Webhook" node (JSON mode fed by a normal node's
+  // output) wraps the result as an array of items — [{...}] — rather than
+  // returning the object directly, so unwrap that shape if present.
+  let script: unknown = await res.json();
+  if (Array.isArray(script)) script = script[0];
+
+  if (!script || typeof script !== 'object' || Array.isArray(script)) {
+    throw new Error('Script workflow returned an invalid response');
+  }
+
+  return script as Record<string, unknown>;
+}
+
+export async function triggerModelTourGeneration(
+  jobId: string,
+  userId: string,
+  script: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<void> {
+  // ── Step 2: Send edited script to n8n video generation workflow ────────────
+  console.log(`[ModelTour] Calling n8n video generation webhook for job ${jobId}`);
+  // Create a 10-minute timeout signal so fetch doesn't abort while n8n renders 6 video scenes
+  const timeoutSignal = AbortSignal.timeout(10 * 60 * 1000);
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+
+  const videoRes = await fetch(N8N_VIDEO_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobId, userId, ...script }),
+    signal: combinedSignal,
+  });
+
+  if (!videoRes.ok) {
+    const body = await videoRes.text().catch(() => '');
+    console.error(`[ModelTour] n8n video webhook ${videoRes.status} ${videoRes.statusText}:`, body);
+    throw new Error(`Failed to trigger model-tour generation: ${videoRes.statusText}${body ? ` — ${body}` : ''}`);
+  }
+
+  // n8n returns the merged video — unwrap array if needed
+  let videoData: unknown = await videoRes.json();
+  if (Array.isArray(videoData)) videoData = videoData[0];
+
+  const mergedVideoUrl = (videoData as { video?: { url?: string } })?.video?.url;
+  if (!mergedVideoUrl) {
+    throw new Error('n8n video generation returned no video URL');
+  }
+  console.log(`[ModelTour] Got merged video from n8n: ${mergedVideoUrl}`);
+
+  // ── Step 3: Forward to splitter/voice-changer n8n workflow ─────────────────
+  // This is fire-and-forget from the backend's perspective — the splitter
+  // workflow will call our POST /api/v1/model-tour/webhook when it's done,
+  // which marks the job as done and unblocks the SSE polling loop.
+  console.log(`[ModelTour] Forwarding to splitter webhook for job ${jobId}`);
+  const splitterRes = await fetch(N8N_SPLITTER_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobId, userId, videoUrl: mergedVideoUrl }),
+  });
+
+  if (!splitterRes.ok) {
+    const body = await splitterRes.text().catch(() => '');
+    console.error(`[ModelTour] Splitter webhook ${splitterRes.status}:`, body);
+    throw new Error(`Failed to hand off to splitter: ${splitterRes.statusText}`);
+  }
+
+  console.log(`[ModelTour] Job ${jobId} handed off to splitter — waiting for backend webhook callback`);
 }

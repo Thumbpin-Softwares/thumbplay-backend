@@ -15,7 +15,12 @@ const app: Application = express();
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || env.frontendUrls.includes(origin)) {
+      if (
+        !origin ||
+        env.frontendUrls.includes(origin) ||
+        origin.endsWith('.thumbpin.in') ||
+        origin.endsWith('.excloud.co.in')
+      ) {
         callback(null, true);
         return;
       }

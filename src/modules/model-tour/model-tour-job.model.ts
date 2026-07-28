@@ -1,30 +1,18 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-// Tracks a single omni-hometour-pipeline generation. Unlike ReelJob (multi
-// stage: splitting/voices/seedance/combining), the fal workflow does
-// scripting+TTS+video internally in one call, so status is effectively
-// binary: running until it isn't.
+// Tracks a single model-tour generation, driven end-to-end by an n8n
+// workflow. The finalize step lets the user edit the n8n-generated script
+// before generation, so `inputs` holds that script verbatim (n8n owns its
+// shape — gender, master prompt, etc. are added by n8n, not us) rather than
+// a fixed set of fields. Status is effectively binary: running until it isn't.
 export type ModelTourJobStatus = 'running' | 'done' | 'error';
-
-export interface ModelTourJobInputs {
-  propertyName: string;
-  locationLandmarks?: string;
-  connectivity?: string;
-  language?: string;
-  tierClass?: string;
-  carpetArea?: string;
-  amenities?: string;
-  tonality?: string;
-  vibe?: string;
-  avatarImageUrls: string[];
-  propertyImageUrls: string[];
-}
 
 export interface IModelTourJob extends Document {
   jobId: string;
   userId: Types.ObjectId;
+  propertyName: string;
   status: ModelTourJobStatus;
-  inputs: ModelTourJobInputs;
+  inputs: Record<string, unknown>;
   resultUrl?: string;
   error?: string;
   createdAt: Date;
@@ -44,23 +32,18 @@ const ModelTourJobSchema = new Schema<IModelTourJob>(
       ref: 'User',
       required: true,
     },
+    propertyName: {
+      type: String,
+      required: true,
+    },
     status: {
       type: String,
       enum: ['running', 'done', 'error'],
       default: 'running',
     },
     inputs: {
-      propertyName: { type: String, required: true },
-      locationLandmarks: String,
-      connectivity: String,
-      language: String,
-      tierClass: String,
-      carpetArea: String,
-      amenities: String,
-      tonality: String,
-      vibe: String,
-      avatarImageUrls: { type: [String], default: [] },
-      propertyImageUrls: { type: [String], default: [] },
+      type: Schema.Types.Mixed,
+      required: true,
     },
     resultUrl: String,
     error: String,
