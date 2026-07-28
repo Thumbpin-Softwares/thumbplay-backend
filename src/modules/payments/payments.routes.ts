@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import express from 'express';
 import { requireAuth } from '../auth/auth.middleware';
-import { createOrderHandler, webhookHandler } from './payments.controller';
+import { createOrderHandler, webhookHandler, verifyPaymentHandler } from './payments.controller';
 
 const router: Router = Router();
 
@@ -63,6 +63,7 @@ const router: Router = Router();
  *         description: Not authenticated
  */
 router.post('/create-order', requireAuth, createOrderHandler);
+router.post('/verify', requireAuth, verifyPaymentHandler);
 
 /**
  * @openapi

@@ -231,3 +231,100 @@ export async function handleWebhookEvent(event: RazorpayWebhookEvent): Promise<H
       return { handled: false, eventType };
   }
 }
+
+// ---------------------------------------------------------------------------
+// STEP 4: Direct Payment Verification & Credit Granting
+//
+// Called by the frontend immediately after a successful Razorpay checkout popup.
+// Verifies HMAC signature: SHA256(razorpayOrderId + "|" + razorpayPaymentId, keySecret).
+// Grants credits and upgrades user plan instantly without waiting for webhooks.
+// ---------------------------------------------------------------------------
+
+export interface VerifyPaymentInput {
+  userId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
+export interface VerifyPaymentResult {
+  success: boolean;
+  creditsAdded: number;
+  planUpdated?: string;
+}
+
+export async function verifyPayment({
+  userId,
+  razorpayOrderId,
+  razorpayPaymentId,
+  razorpaySignature,
+}: VerifyPaymentInput): Promise<VerifyPaymentResult> {
+  // If Razorpay keys aren't set (mock mode in dev), return success
+  if (!env.razorpayKeyId || !env.razorpayKeySecret) {
+    return { success: true, creditsAdded: 0 };
+  }
+
+  // 1. Verify Razorpay Payment Signature
+  const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', env.razorpayKeySecret)
+    .update(body)
+    .digest('hex');
+
+  if (expectedSignature !== razorpaySignature) {
+    throw new Error('Invalid payment signature');
+  }
+
+  // 2. Fetch Order from Razorpay to read notes (credits, item_id, plan_tier)
+  const Razorpay = (await import('razorpay')).default;
+  const razorpay = new Razorpay({
+    key_id: env.razorpayKeyId,
+    key_secret: env.razorpayKeySecret,
+  });
+
+  const order = await razorpay.orders.fetch(razorpayOrderId);
+  const notes = order.notes as Record<string, string> | undefined;
+
+  const notesUserId = notes?.user_id || userId;
+  const credits     = parseInt(notes?.credits || '0', 10);
+  const itemId      = notes?.item_id;
+  const itemKind    = notes?.item_kind;
+  const planTier    = notes?.plan_tier as 'free' | 'pro' | undefined;
+
+  if (credits <= 0) {
+    throw new Error('No credits specified for order');
+  }
+
+  let planUpdated: string | undefined;
+
+  // Upgrade user plan if subscription
+  if (itemKind === 'subscription' && planTier && planTier !== 'free') {
+    await User.findByIdAndUpdate(notesUserId, { plan: planTier });
+    planUpdated = planTier;
+    console.log(`[Payments] Direct verify: Upgraded user ${notesUserId} to plan: ${planTier}`);
+  }
+
+  // Add credits to user account
+  await addCredits({
+    userId: notesUserId,
+    amount: credits,
+    action: itemKind === 'subscription' ? 'subscription_recharge' : 'credits_topup',
+    metadata: {
+      source: 'razorpay_verify',
+      paymentId: razorpayPaymentId,
+      orderId: razorpayOrderId,
+      itemId,
+      itemKind,
+      planTier,
+    },
+  });
+
+  console.log(`[Payments] Direct verify: Added ${credits} credits to user ${notesUserId}`);
+
+  return {
+    success: true,
+    creditsAdded: credits,
+    ...(planUpdated !== undefined ? { planUpdated } : {}),
+  };
+}
+

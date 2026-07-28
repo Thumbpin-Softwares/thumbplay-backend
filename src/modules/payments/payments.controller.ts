@@ -1,6 +1,40 @@
 import { Request, Response } from 'express';
 import { AuthedRequest } from '../auth/auth.types';
-import { createOrder, verifyWebhookSignature, handleWebhookEvent, RazorpayWebhookEvent } from './payments.service';
+import { createOrder, verifyWebhookSignature, handleWebhookEvent, RazorpayWebhookEvent, verifyPayment } from './payments.service';
+
+// ---------------------------------------------------------------------------
+// POST /api/v1/payments/verify
+// Protected: requires a valid auth cookie (requireAuth middleware).
+// Called directly by the frontend right after Razorpay popup checkout succeeds.
+// ---------------------------------------------------------------------------
+export async function verifyPaymentHandler(req: AuthedRequest, res: Response): Promise<void> {
+  try {
+    const userId = req.user!._id.toString();
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body as {
+      razorpayOrderId?: string;
+      razorpayPaymentId?: string;
+      razorpaySignature?: string;
+    };
+
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      res.status(400).json({ error: 'Missing payment verification parameters' });
+      return;
+    }
+
+    const result = await verifyPayment({
+      userId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('[Payments] verifyPayment error:', error);
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Payment verification failed' });
+  }
+}
+
 import { resolvePurchasable } from './payment-plans';
 import { env } from '../../config/env';
 
