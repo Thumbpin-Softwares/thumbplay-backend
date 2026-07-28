@@ -111,7 +111,7 @@ export const env = {
   // All three are optional: if unset, createOrder() returns a mock order so
   // you can test the full UI flow without a real Razorpay account.
   // ---------------------------------------------------------------------------
-  razorpayKeyId: optional('RAZORPAY_KEY_ID', ''),
-  razorpayKeySecret: optional('RAZORPAY_KEY_SECRET', ''),
-  razorpayWebhookSecret: optional('RAZORPAY_WEBHOOK_SECRET', ''),
+  razorpayKeyId: optional('RAZORPAY_KEY_ID', '').trim(),
+  razorpayKeySecret: optional('RAZORPAY_KEY_SECRET', '').trim(),
+  razorpayWebhookSecret: optional('RAZORPAY_WEBHOOK_SECRET', '').trim(),
 } as const;
