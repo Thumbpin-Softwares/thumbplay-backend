@@ -68,6 +68,14 @@ export interface OmniHomeTourInput {
   amenities?: string;
   tonality?: string;
   vibe?: string;
+  // Set when the user wrote the script themselves (SiteForm's Manual Script
+  // mode) instead of having n8n generate it from the descriptive fields
+  // above. Presence of this field is what selects the manual payload shape
+  // in generateModelTourScript — the AI-guidance fields (location/
+  // connectivity/carpetArea/amenities/tonality/vibe) are meaningless once
+  // the final voiceover text is already decided, so they're dropped rather
+  // than sent empty.
+  script?: string;
 }
 
 function padTo4(urls: string[]): [string, string, string, string] {
@@ -93,29 +101,49 @@ export async function generateModelTourScript(
   const [avatar_image1, avatar_image2, avatar_image3, avatar_image4] = padTo4(input.avatarImageUrls);
   const [property_image1, property_image2, property_image3, property_image4] = padTo4(input.propertyImageUrls);
 
+  const isManual = typeof input.script === 'string' && input.script.trim().length > 0;
+
+  const payload = isManual
+    ? {
+        avatar_image1,
+        avatar_image2,
+        avatar_image3,
+        avatar_image4,
+        property_image1,
+        property_image2,
+        property_image3,
+        property_image4,
+        property_name: input.propertyName,
+        type: input.type ?? '',
+        language: input.language ?? '',
+        tier_class: input.tierClass ?? '',
+        script: input.script,
+      }
+    : {
+        avatar_image1,
+        avatar_image2,
+        avatar_image3,
+        avatar_image4,
+        property_image1,
+        property_image2,
+        property_image3,
+        property_image4,
+        property_name: input.propertyName,
+        type: input.type ?? '',
+        location_landmarks: input.locationLandmarks ?? '',
+        connectivity: input.connectivity ?? '',
+        language: input.language ?? '',
+        tier_class: input.tierClass ?? '',
+        carpet_area: input.carpetArea ?? '',
+        amenities: input.amenities ?? '',
+        tonality: input.tonality ?? '',
+        vibe: input.vibe ?? '',
+      };
+
   const res = await fetch(N8N_SCRIPT_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      avatar_image1,
-      avatar_image2,
-      avatar_image3,
-      avatar_image4,
-      property_image1,
-      property_image2,
-      property_image3,
-      property_image4,
-      property_name: input.propertyName,
-      type: input.type ?? '',
-      location_landmarks: input.locationLandmarks ?? '',
-      connectivity: input.connectivity ?? '',
-      language: input.language ?? '',
-      tier_class: input.tierClass ?? '',
-      carpet_area: input.carpetArea ?? '',
-      amenities: input.amenities ?? '',
-      tonality: input.tonality ?? '',
-      vibe: input.vibe ?? '',
-    }),
+    body: JSON.stringify(payload),
     ...(signal ? { signal } : {}),
   });
 
