@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Request, Response } from 'express';
 import { AuthedRequest } from '../auth/auth.types';
 import { ModelTourJob } from './model-tour-job.model';
@@ -63,8 +64,12 @@ function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHom
   return { input };
 }
 
-// POST /model-tour/script — the "checkpoint" step: raw form fields in,
-// n8n's merged script JSON back out for the finalize step to show/edit.
+// POST /model-tour/script — the "checkpoint" step: raw form fields in, a
+// jobId back out immediately (202). The n8n call that actually builds the
+// script can run past Vercel's ~60s edge-response timeout, so this can't be
+// a plain blocking request/response — the job runs in the background and the
+// finalize step polls GET /model-tour/jobs/:jobId (same job model/endpoint
+// /generate already uses) until `result` holds the script JSON.
 export async function getScript(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   if (!userId) {
@@ -78,13 +83,27 @@ export async function getScript(req: AuthedRequest, res: Response): Promise<void
     return;
   }
 
+  const jobId = crypto.randomUUID();
+  const { input } = parsed;
+
   try {
-    const script = await generateModelTourScript(parsed.input);
-    res.status(200).json({ script });
+    await ModelTourJob.create({ jobId, userId, propertyName: input.propertyName, status: 'running', inputs: { ...input } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to start script generation';
+    console.error(`${LOG} getScript create-job error:`, error);
+    res.status(500).json({ error: message });
+    return;
+  }
+
+  res.status(202).json({ jobId });
+
+  try {
+    const script = await generateModelTourScript(input);
+    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', result: script } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to generate script';
-    console.error(`${LOG} getScript error:`, error);
-    res.status(500).json({ error: message });
+    console.error(`${LOG} getScript background error:`, error);
+    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'error', error: message } });
   }
 }
 

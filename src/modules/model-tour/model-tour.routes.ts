@@ -65,12 +65,14 @@ router.post('/webhook', webhookUploadField, handleN8nWebhook);
  * @openapi
  * /model-tour/script:
  *   post:
- *     summary: Generate the model-tour script JSON (checkpoint step) via the n8n workflow
+ *     summary: Start the model-tour script generation job (checkpoint step) via the n8n workflow
  *     description: >
- *       Synchronous — n8n predicts avatar gender from images, merges the form inputs, builds
- *       the master prompt for the given property type, and responds with the merged script
- *       JSON. The frontend shows this in the finalize step, where it can be edited before
- *       being sent to /model-tour/generate.
+ *       Async — responds 202 with a jobId immediately; n8n predicts avatar gender from images,
+ *       merges the form inputs, and builds the master prompt for the given property type in the
+ *       background (can exceed Vercel's ~60s edge-response timeout). Poll GET
+ *       /model-tour/jobs/:jobId until status is "done", then read `result` for the script JSON.
+ *       The frontend shows this in the finalize step, where it can be edited before being sent
+ *       to /model-tour/generate.
  *     tags: [Model Tour]
  *     security:
  *       - cookieAuth: []
@@ -95,8 +97,8 @@ router.post('/webhook', webhookUploadField, handleN8nWebhook);
  *               avatarImageUrls: { type: array, items: { type: string }, minItems: 1, maxItems: 4 }
  *               propertyImageUrls: { type: array, items: { type: string }, minItems: 1, maxItems: 4 }
  *     responses:
- *       200:
- *         description: The generated script JSON
+ *       202:
+ *         description: "{ jobId }"
  *       400:
  *         description: Validation error
  *       401:
