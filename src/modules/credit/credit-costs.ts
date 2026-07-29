@@ -27,7 +27,24 @@ export const CREDIT_ACTIONS: Record<string, CreditActionConfig> = {
   // cost is a placeholder — captions are priced dynamically per job via
   // computeCaptionCreditCost() below and passed in as a costOverride.
   captions_generation: { cost: 0, freeBucket: null, label: 'Caption Generation' },
+  // cost is a placeholder — priced dynamically per job from n8n's reported
+  // `cost` field via computeCreditsFromRawCost() below, passed as a costOverride.
+  model_tour_script_generation: { cost: 0, freeBucket: null, label: 'Model Tour Script Generation' },
 };
+
+// Generic USD-cost -> credits conversion, same margin/peg as captions but
+// without the duration-based buildup captions need — used for actions that
+// report back a raw infra cost directly (e.g. the model-tour script
+// webhook's `cost` field) instead of one computed from job parameters.
+export function computeCreditsFromRawCost(
+  rawCostUsd: number,
+  marginMultiplier = 10,
+  usdToCredits = 480,
+): { rawCostUsd: number; sellingPriceUsd: number; credits: number } {
+  const sellingPriceUsd = (rawCostUsd || 0) * marginMultiplier;
+  const credits = Math.max(1, Math.ceil(sellingPriceUsd * usdToCredits));
+  return { rawCostUsd: rawCostUsd || 0, sellingPriceUsd, credits };
+}
 
 // VEED subtitles ("captions_generation") pricing — usage-based instead of a
 // flat catalog cost. Port of thumbpinclient/src/lib/credit-costs.js. Real
