@@ -12,6 +12,7 @@ import {
   triggerModelTourGeneration,
   OmniHomeTourInput,
   PropertyType,
+  ModelTourTemplateKey,
 } from './model-tour.service';
 import { uploadToR2, buildUserKey } from '../reel/r2.service';
 
@@ -20,6 +21,7 @@ const SCRIPT_CREDIT_ACTION = 'model_tour_script_generation';
 const LOG = '[ModelTour]';
 const MAX_IMAGES = 4;
 const PROPERTY_TYPES = new Set<PropertyType>(['residential', 'commercial', 'plotted']);
+const TEMPLATE_KEYS = new Set<ModelTourTemplateKey>(['model-tour', 'luxury-car-exit']);
 
 type UploadFiles = Record<string, Express.Multer.File[]>;
 
@@ -35,10 +37,14 @@ function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHom
     : [];
   const type = ((body.type as string) || '').toString().trim().toLowerCase() as PropertyType | '';
   const script = ((body.script as string) || '').toString().trim();
+  const template = ((body.template as string) || '').toString().trim().toLowerCase() as ModelTourTemplateKey | '';
 
   if (!propertyName) return { error: 'propertyName is required' };
   if (type && !PROPERTY_TYPES.has(type)) {
     return { error: `type must be one of: ${[...PROPERTY_TYPES].join(', ')}` };
+  }
+  if (template && !TEMPLATE_KEYS.has(template)) {
+    return { error: `template must be one of: ${[...TEMPLATE_KEYS].join(', ')}` };
   }
   if (avatarImageUrls.length < 1 || avatarImageUrls.length > MAX_IMAGES) {
     return { error: `avatarImageUrls must have between 1 and ${MAX_IMAGES} URLs` };
@@ -50,6 +56,7 @@ function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHom
   const input: OmniHomeTourInput = {
     propertyName,
     ...(type ? { type } : {}),
+    ...(template ? { template } : {}),
     ...(script ? { script } : {}),
     locationLandmarks: ((body.locationLandmarks as string) || '').toString(),
     connectivity: ((body.connectivity as string) || '').toString(),
