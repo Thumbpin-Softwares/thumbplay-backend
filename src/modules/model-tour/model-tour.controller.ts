@@ -4,6 +4,7 @@ import { AuthedRequest } from '../auth/auth.types';
 import { ModelTourJob } from './model-tour-job.model';
 import { Asset } from '../asset/asset.model';
 import { consumeCreditsForAction, refundCreditsForAction, ConsumeDebit } from '../credit/credit.service';
+import { computeCreditsFromRawCost } from '../credit/credit-costs';
 import { startSse } from '../reel/sse';
 import {
   uploadPropertyImage,
@@ -15,6 +16,7 @@ import {
 import { uploadToR2, buildUserKey } from '../reel/r2.service';
 
 const CREDIT_ACTION = 'real_estate_video';
+const SCRIPT_CREDIT_ACTION = 'model_tour_script_generation';
 const LOG = '[ModelTour]';
 const MAX_IMAGES = 4;
 const PROPERTY_TYPES = new Set<PropertyType>(['residential', 'commercial', 'plotted']);
@@ -99,7 +101,31 @@ export async function getScript(req: AuthedRequest, res: Response): Promise<void
 
   try {
     const script = await generateModelTourScript(input);
-    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', result: script } });
+
+    let result: Record<string, unknown> = script as Record<string, unknown>;
+    const rawCostUsd = typeof (script as Record<string, unknown>)?.cost === 'number' ? ((script as Record<string, unknown>).cost as number) : null;
+    if (rawCostUsd && rawCostUsd > 0) {
+      try {
+        const { credits } = computeCreditsFromRawCost(rawCostUsd);
+        const creditResult = await consumeCreditsForAction({
+          userId,
+          action: SCRIPT_CREDIT_ACTION,
+          costOverride: credits,
+          metadata: { jobId, rawCostUsd, endpoint: '/api/v1/model-tour/script' },
+        });
+        if (creditResult.ok) {
+          result = { ...result, creditsCharged: credits };
+        } else {
+          console.warn(`${LOG} script credit charge failed for job ${jobId}:`, creditResult.payload);
+        }
+      } catch (chargeError) {
+        // Billing must never turn an already-generated script into a
+        // job-level error — log and let the script through regardless.
+        console.error(`${LOG} script credit charge error for job ${jobId}:`, chargeError);
+      }
+    }
+
+    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', result } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to generate script';
     console.error(`${LOG} getScript background error:`, error);
