@@ -55,10 +55,16 @@ export async function uploadPropertyImage(userId: string, file: UploadedImage, n
 
 export type PropertyType = 'residential' | 'commercial' | 'plotted';
 
+// Which template's script-generation webhook to call — every other stage
+// (video render, splitter/voice-change) is shared infra reused across
+// templates, only the script webhook differs per template.
+export type ModelTourTemplateKey = 'model-tour' | 'luxury-car-exit';
+
 export interface OmniHomeTourInput {
   avatarImageUrls: string[];
   propertyImageUrls: string[];
   propertyName: string;
+  template?: ModelTourTemplateKey;
   type?: PropertyType;
   locationLandmarks?: string;
   connectivity?: string;
@@ -89,7 +95,13 @@ function optionalString(value: unknown): string | undefined {
 }
 
 // Step 1: Script generation webhook — raw form inputs → n8n returns storyboard JSON.
-const N8N_SCRIPT_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714';
+// Per-template: each template has its own n8n workflow for turning form
+// inputs into a script, keyed by ModelTourTemplateKey. Falls back to
+// "model-tour" (real estate) when no template is specified.
+const N8N_SCRIPT_WEBHOOKS: Record<ModelTourTemplateKey, string> = {
+  'model-tour': 'https://wrk-413d.apps.excloud.co.in/webhook/6c94980a-83b4-47dc-ba29-44742ba81714',
+  'luxury-car-exit': 'https://wrk-413d.apps.excloud.co.in/webhook/2aa4d5ec-60d1-45fc-97ca-792b851825c7',
+};
 
 // Step 2: Video generation webhook — (possibly edited) script JSON → n8n renders
 // all 6 video clips with voice and merges them, returns { video: { url } }.
@@ -146,7 +158,9 @@ export async function generateModelTourScript(
         vibe: input.vibe ?? '',
       };
 
-  const res = await fetch(N8N_SCRIPT_WEBHOOK_URL, {
+  const scriptWebhookUrl = N8N_SCRIPT_WEBHOOKS[input.template ?? 'model-tour'];
+
+  const res = await fetch(scriptWebhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

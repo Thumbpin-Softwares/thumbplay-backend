@@ -16,7 +16,7 @@ const renderRemotion = createRenderRemotionHandler({
   assetSource: 'seedance-reel-export',
   exportedFrom: 'seedance-reel',
   x264Preset: 'ultrafast',
-  concurrency: 4,
+  concurrency: 2,
   withRetry: false,
 });
 

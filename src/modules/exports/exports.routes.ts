@@ -19,7 +19,7 @@ const renderRemotion = createRenderRemotionHandler({
   assetDisplayName: 'Video',
   assetSource: 'video-export',
   x264Preset: 'ultrafast',
-  concurrency: 4,
+  concurrency: 2,
   withRetry: false,
   normalizeKeyframes: true,
 });
