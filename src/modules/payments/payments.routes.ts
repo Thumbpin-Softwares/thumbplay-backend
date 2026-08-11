@@ -73,7 +73,7 @@ router.post('/verify', requireAuth, verifyPaymentHandler);
  *     description: |
  *       Razorpay POSTs payment events here when things happen (payment captured,
  *       subscription activated, etc.). The raw body is HMAC-SHA256 verified before
- *       any processing — set `RAZORPAY_WEBHOOK_SECRET` to the value from your
+ *       any processing - set `RAZORPAY_WEBHOOK_SECRET` to the value from your
  *       Razorpay Dashboard → Webhooks page.
  *
  *       **Do NOT call this from the frontend.** Only Razorpay should hit this URL.
@@ -96,7 +96,7 @@ router.post('/verify', requireAuth, verifyPaymentHandler);
  *       500:
  *         description: Processing error
  */
-// express.raw() here is CRITICAL — it gives us the raw Buffer instead of parsed JSON.
+// express.raw() here is CRITICAL - it gives us the raw Buffer instead of parsed JSON.
 // The HMAC signature is computed over the raw bytes, so we must verify before parsing.
 router.post('/webhook', express.raw({ type: 'application/json' }), webhookHandler);
 

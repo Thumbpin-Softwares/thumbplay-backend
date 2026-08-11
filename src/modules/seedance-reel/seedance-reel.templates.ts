@@ -4,7 +4,7 @@ import { splitWordsIntoChunks } from '../reel/template-reproduce.service';
 // thumbpinclient/src/app/api/luxury-car-exit/generate-pipeline/route.js
 // (the current live source of what this app used to call "seedance-reel").
 
-export const MASTER_TEMPLATE_A = `A hyper-realistic, vertical (9:16) UGC-style luxury real estate vlog. Natural, dynamic lighting. It looks like a high-budget smartphone video. All spoken dialogue is delivered in a natural, conversational Hindi accent — casual everyday rhythm and pacing, like a real person talking to a friend, not overly enunciated or textbook-perfect.
+export const MASTER_TEMPLATE_A = `A hyper-realistic, vertical (9:16) UGC-style luxury real estate vlog. Natural, dynamic lighting. It looks like a high-budget smartphone video. All spoken dialogue is delivered in a natural, conversational Hindi accent - casual everyday rhythm and pacing, like a real person talking to a friend, not overly enunciated or textbook-perfect.
 
 [0:00 - 0:05] The video opens with a sleek luxury car pulling up to a stop. The female agent, Anvi (using #image7 for her facial features and #image5 for her black outfit), steps out of the car with effortless elegance and begins walking confidently toward the camera. She holds the camera selfie-style and looks directly into the lens with warm, inviting energy and says: "Kya aapne kabhi socha hai ki aapka agla ghar bilkul filmy ho sakta hai? Hello, main hoon Anvi..."
 
@@ -14,7 +14,7 @@ export const MASTER_TEMPLATE_A = `A hyper-realistic, vertical (9:16) UGC-style l
 
 [0:11 - 0:15] Hard cut. Back to the agent Anvi (#image7 and #image5), now standing at the villa's entrance with the luxury car still visible behind her. She smiles confidently, holding the camera selfie-style, and finishes her sentence: "...aapki real estate expert, aur aaj main aapko dikhane waali hoon aapka naya dream home!" She stops speaking at exactly 13 seconds and spends the final 2 seconds simply holding a bright, confident smile at the camera, ending the video naturally.`;
 
-export const MASTER_TEMPLATE_B = `A hyper-realistic, vertical (9:16) UGC-style high-energy luxury real estate vlog. Dynamic, fast-paced cinematic editing. Natural interior lighting. All spoken dialogue is delivered in a natural, conversational Hindi accent — casual everyday rhythm and pacing, like a real person talking to a friend, not overly enunciated or textbook-perfect.
+export const MASTER_TEMPLATE_B = `A hyper-realistic, vertical (9:16) UGC-style high-energy luxury real estate vlog. Dynamic, fast-paced cinematic editing. Natural interior lighting. All spoken dialogue is delivered in a natural, conversational Hindi accent - casual everyday rhythm and pacing, like a real person talking to a friend, not overly enunciated or textbook-perfect.
 
 [0:00 - 0:03] The video opens with a fast, sweeping shot moving towards the modern luxury villa exterior, matching exactly with #image1. The voiceover starts: "Zara sochiye... itna khoobsurat ghar..."
 
@@ -42,7 +42,7 @@ export function buildReproducePrompt({
 }): string {
   return `Reproduce the following video-generation prompt EXACTLY, with ONE change: replace all of the example spoken dialogue (the text inside quotation marks) with this actual dialogue, which must be spoken in full and unchanged: "${dialogue}"
 
-You decide exactly where to split this dialogue across the quoted lines — it does not have to break at the same word as the example. You may also nudge the timestamp ranges in brackets (e.g. "[0:00 - 0:05]") so the pacing fits the new dialogue naturally — they must still start at 0:00, stay in the same order, and sum to 15 seconds total.
+You decide exactly where to split this dialogue across the quoted lines - it does not have to break at the same word as the example. You may also nudge the timestamp ranges in brackets (e.g. "[0:00 - 0:05]") so the pacing fits the new dialogue naturally - they must still start at 0:00, stay in the same order, and sum to 15 seconds total.
 
 Do NOT change anything else: keep every camera movement, action description, character description, image reference (#image1, #image2, etc.), and "Hard cut." exactly as written below. Do not invent dialogue beyond the actual dialogue given above.
 
@@ -51,7 +51,7 @@ TEMPLATE TO REPRODUCE (${partLabel}):
 ${masterTemplate}
 """
 
-Return ONLY the finished prompt text — no markdown fences, no preamble, no explanation.`;
+Return ONLY the finished prompt text - no markdown fences, no preamble, no explanation.`;
 }
 
 export function fillTemplateAFallback(dialogue: string): string {

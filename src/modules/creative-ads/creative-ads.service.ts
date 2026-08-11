@@ -3,7 +3,7 @@ import { uploadToR2, buildUserKey } from '../reel/r2.service';
 // Every creative template is exactly one n8n webhook: build prompt -> generate
 // image -> respond. Unlike the video pipeline (model-tour), there's no shared
 // "common renderer" stage, because a static creative is one image, not six
-// clips that need stitching — so each template is fully self-contained.
+// clips that need stitching - so each template is fully self-contained.
 // Adding template #2 is one new n8n workflow (duplicate creative-ads-art-of-living)
 // + one new entry below, nothing else in the backend changes.
 export type CreativeTemplateKey = 'art-of-living' | 'daylight-aesthetic' | 'midnight-aesthetic' | 'minimal-heights';
@@ -30,8 +30,8 @@ export interface CreativeAdInput {
   subheading?: string;
   ctaText?: string;
   tonality?: string;
-  // Freeform, template-agnostic extras — a location line, a payment-plan
-  // split, a unit-type pill, a URL — whatever a given template's design
+  // Freeform, template-agnostic extras - a location line, a payment-plan
+  // split, a unit-type pill, a URL - whatever a given template's design
   // calls for, rather than growing one bespoke field per template.
   location?: string;
   additionalDetails?: string;
@@ -45,7 +45,7 @@ export interface CreativeAdResult {
 }
 
 // Step 1 & 2 in one call: sends raw form fields straight to the template's
-// n8n webhook, which builds its own prompt and renders the final creative —
+// n8n webhook, which builds its own prompt and renders the final creative -
 // returns { image: { url }, cost } (see Extract Creative Image URL node).
 export async function generateCreativeAd(
   jobId: string,
@@ -82,12 +82,12 @@ export async function generateCreativeAd(
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     console.error(`[CreativeAds] n8n webhook ${res.status} ${res.statusText}:`, body);
-    throw new Error(`Failed to generate creative ad: ${res.statusText}${body ? ` — ${body}` : ''}`);
+    throw new Error(`Failed to generate creative ad: ${res.statusText}${body ? ` - ${body}` : ''}`);
   }
 
   // A workflow that errors on a node upstream of "Respond With Creative"
   // can still return a 2xx with an empty/non-JSON body (n8n's own generic
-  // response, not our respondToWebhook node) — read as text first so that
+  // response, not our respondToWebhook node) - read as text first so that
   // case surfaces as a clear error instead of a raw JSON.parse SyntaxError.
   const rawBody = await res.text();
   let parsed: unknown;
@@ -95,7 +95,7 @@ export async function generateCreativeAd(
     parsed = JSON.parse(rawBody);
   } catch {
     console.error(`[CreativeAds] n8n webhook returned non-JSON body:`, rawBody);
-    throw new Error(`Creative ad workflow returned an invalid response${rawBody ? ` — ${rawBody.slice(0, 200)}` : ' (empty body)'}`);
+    throw new Error(`Creative ad workflow returned an invalid response${rawBody ? ` - ${rawBody.slice(0, 200)}` : ' (empty body)'}`);
   }
 
   // n8n's "Respond to Webhook" node wraps the result as [{...}] rather than
@@ -115,7 +115,7 @@ export async function generateCreativeAd(
 }
 
 // Downloads the generated creative from fal's CDN and persists it to our own
-// R2 bucket — same pattern as model-tour's n8n webhook handler, just called
+// R2 bucket - same pattern as model-tour's n8n webhook handler, just called
 // synchronously here since there's no splitter/voice-change hand-off stage
 // for static images.
 export async function persistCreativeAsset(userId: string, imageUrl: string): Promise<string> {

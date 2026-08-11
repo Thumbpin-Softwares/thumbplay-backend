@@ -125,7 +125,7 @@ router.get('/me', requireAuth, me);
  * /auth/google:
  *   get:
  *     summary: Start Google OAuth sign-in
- *     description: Redirects the browser to Google's consent screen. Not meant to be called via fetch/XHR — navigate to it directly.
+ *     description: Redirects the browser to Google's consent screen. Not meant to be called via fetch/XHR - navigate to it directly.
  *     tags: [Auth]
  *     parameters:
  *       - in: query
@@ -189,7 +189,7 @@ router.get('/google/callback', googleCallback);
  *               code: { type: string }
  *     responses:
  *       200:
- *         description: Valid code — auth_token cookie set (for direct calls to this backend) and the token returned in the body so the caller can mint its own cookie
+ *         description: Valid code - auth_token cookie set (for direct calls to this backend) and the token returned in the body so the caller can mint its own cookie
  *         content:
  *           application/json:
  *             schema:

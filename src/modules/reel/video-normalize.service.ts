@@ -8,13 +8,13 @@ import ffmpegPath from 'ffmpeg-static';
 
 const execFileAsync = promisify(execFile);
 
-// Port of thumbpinclient/src/lib/video-normalize.js — re-encodes a video
+// Port of thumbpinclient/src/lib/video-normalize.js - re-encodes a video
 // buffer with a short, fixed keyframe interval so Remotion's OffthreadVideo
 // can seek to any mid-clip frame without landing on a black frame (the
 // editor's Cut tool re-bases surviving chunks to arbitrary frames; AI
 // generation providers optimize source keyframe spacing for streaming, not
 // scrubbing). Only worth paying the re-encode cost for clips that will
-// actually be reopened in the editor — not on already-flattened exports
+// actually be reopened in the editor - not on already-flattened exports
 // that are never seeked into again (callers opt in per-upload).
 export async function normalizeKeyframesForSeeking(buffer: Buffer): Promise<Buffer> {
   const id = crypto.randomUUID();

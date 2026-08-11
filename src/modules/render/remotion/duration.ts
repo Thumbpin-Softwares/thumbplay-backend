@@ -1,9 +1,9 @@
 // Port of thumbpinclient/src/lib/remotion/duration.js, trimmed to what the
 // "ActionReel" composition needs: applyCutRanges (the editor's cut/trim
-// algorithm — kept since the composition itself is generic over cutRanges,
+// algorithm - kept since the composition itself is generic over cutRanges,
 // even though this pass's own generate→render flow never populates them)
 // and calcActionReelBaseDurationInFrames. Skipped: clampBrollClips,
-// calcDurationInFrames, mapVirtualRangeToOriginal — all belong to the
+// calcDurationInFrames, mapVirtualRangeToOriginal - all belong to the
 // SeedanceReel/NewsAnchor compositions (other pipelines, out of scope) or
 // the editor UI itself (out of scope).
 
@@ -69,8 +69,8 @@ export interface ActionReelDurationInput {
   fps?: number | undefined;
 }
 
-// Base duration for the "ActionReel" composition — two independent,
-// already-baked-audio Seedance clips back to back. Raw (no cuts) — the
+// Base duration for the "ActionReel" composition - two independent,
+// already-baked-audio Seedance clips back to back. Raw (no cuts) - the
 // cuts-aware wrapper is calcActionReelDurationInFrames in
 // ActionReelComposition.tsx.
 export function calcActionReelBaseDurationInFrames({

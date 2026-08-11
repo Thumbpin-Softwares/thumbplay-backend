@@ -1,7 +1,7 @@
 import { fal } from './fal-client';
 
 // Port of the callLLM helper duplicated across all three reel pipelines'
-// generate-pipeline route.js files (identical in each) — script splitting +
+// generate-pipeline route.js files (identical in each) - script splitting +
 // template reproduction both go through this. Primary model via fal.ai's
 // openrouter/router proxy; falls back to fal-ai/any-llm on any failure or
 // empty output.

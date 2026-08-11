@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { User, IUser } from './user.model';
 
-// Must match thumbpinclient/src/lib/users.js exactly — existing hashed
+// Must match thumbpinclient/src/lib/users.js exactly - existing hashed
 // passwords in the shared DB were created at cost 12.
 const BCRYPT_COST = 12;
 
@@ -44,7 +44,7 @@ interface GoogleProfile {
 
 // Mirrors thumbpinclient/src/lib/auth-config.js's NextAuth signIn callback:
 // find by googleId → else find by email and link (auto-link by email match,
-// no confirmation step — same behavior as before) → else create fresh.
+// no confirmation step - same behavior as before) → else create fresh.
 export async function findOrCreateGoogleUser({ googleId, email, name, image }: GoogleProfile): Promise<IUser> {
   const normalizedEmail = email.toLowerCase();
 

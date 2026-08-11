@@ -5,7 +5,7 @@ import { createRenderRemotionHandler } from '../render/render.controller';
 const router: Router = Router();
 
 // Shared re-export endpoint for the "isFlatExport" EDITABLE_SOURCES entries
-// on thumbpinclient (see src/lib/editable-sources.js) — reopening an
+// on thumbpinclient (see src/lib/editable-sources.js) - reopening an
 // already-exported reel (from any original pipeline) is always a
 // single-clip "ActionReel" composition (part1 only), so one generic route
 // covers all of them. Matches the source's x264Preset "ultrafast" +
@@ -31,7 +31,7 @@ const renderRemotion = createRenderRemotionHandler({
  *     summary: Re-render a trimmed/edited clip from the manual editor (any EDITABLE_SOURCES origin)
  *     description: >
  *       Streams progress as Server-Sent Events (status/progress/done/error). Always
- *       renders the single-clip "ActionReel" composition (part1 only) — used both for
+ *       renders the single-clip "ActionReel" composition (part1 only) - used both for
  *       fresh exports out of the editor and for re-exporting an already-exported clip.
  *     tags: [Exports]
  *     security:

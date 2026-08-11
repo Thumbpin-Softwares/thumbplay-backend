@@ -9,7 +9,7 @@ const router: Router = Router();
  * /admin/auth/login:
  *   post:
  *     summary: Admin login
- *     description: Bcrypt-hash-only credential check against ADMIN_EMAIL/ADMIN_PASSWORD_HASH — no plaintext fallback.
+ *     description: Bcrypt-hash-only credential check against ADMIN_EMAIL/ADMIN_PASSWORD_HASH - no plaintext fallback.
  *     tags: [Admin Auth]
  *     requestBody:
  *       required: true

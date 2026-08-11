@@ -1,4 +1,4 @@
-// Port of thumbpinclient/src/lib/remotion/caption-presets.js — style presets
+// Port of thumbpinclient/src/lib/remotion/caption-presets.js - style presets
 // for the VEED subtitles API (fal.ai `veed/subtitles`). "dynamic" presets
 // render animated captions and cost 2x vs "basic" presets (see
 // computeCaptionCreditCost). Kept in sync manually with the frontend copy,

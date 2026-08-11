@@ -23,7 +23,7 @@ import {
 const CREDIT_ACTION = 'action_reel_video';
 const LOG = '[ComedyReel]';
 
-// Always resolves to "720p" — vestigial in the source.
+// Always resolves to "720p" - vestigial in the source.
 function resolutionForQuality(_quality: string): string {
   return '720p';
 }
@@ -32,7 +32,7 @@ type ReelUploadFiles = Record<string, Express.Multer.File[]>;
 
 // Declared as plain AuthedRequest (not a Request subtype adding `files`) so
 // Express's route-array type-unification across [requireAuth, reelUploadFields,
-// generatePipeline] doesn't misresolve the overload — multer attaches `.files`
+// generatePipeline] doesn't misresolve the overload - multer attaches `.files`
 // at runtime regardless; accessed here via a narrow internal cast.
 export async function generatePipeline(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
@@ -273,8 +273,8 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
       ]);
 
       if (!part1VideoUrl && !part2VideoUrl) {
-        send({ type: 'fatal_error', message: 'Both video generations failed — please check your images and try again.' });
-        throw new Error('Both Seedance video generations failed — see server logs for details.');
+        send({ type: 'fatal_error', message: 'Both video generations failed - please check your images and try again.' });
+        throw new Error('Both Seedance video generations failed - see server logs for details.');
       }
 
       send({ type: 'uploading', message: 'Saving to your Asset Library…' });
@@ -284,7 +284,7 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
         try {
           await Asset.create({
             userId,
-            name: `Comedy Reel — ${new Date().toLocaleDateString()}`,
+            name: `Comedy Reel - ${new Date().toLocaleDateString()}`,
             url: primaryUrl,
             type: 'clip',
             metadata: { source: 'comedy-reel', part1VideoUrl, part2VideoUrl, part1AudioUrl, part2AudioUrl, language },

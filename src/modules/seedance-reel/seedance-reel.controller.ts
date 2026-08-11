@@ -23,7 +23,7 @@ import {
 const CREDIT_ACTION = 'real_estate_video';
 const LOG = '[SeedanceReel]';
 
-// Always resolves to "720p" regardless of input — vestigial in the source
+// Always resolves to "720p" regardless of input - vestigial in the source
 // (StepFinalize offers auto/720p/1080p but the backend never honors it).
 function resolutionForQuality(_quality: string): string {
   return '720p';
@@ -33,7 +33,7 @@ type ReelUploadFiles = Record<string, Express.Multer.File[]>;
 
 // Declared as plain AuthedRequest (not a Request subtype adding `files`) so
 // Express's route-array type-unification across [requireAuth, reelUploadFields,
-// generatePipeline] doesn't misresolve the overload — multer attaches `.files`
+// generatePipeline] doesn't misresolve the overload - multer attaches `.files`
 // at runtime regardless; accessed here via a narrow internal cast.
 export async function generatePipeline(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
@@ -54,7 +54,7 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
     const quality = (body.quality || 'auto').toString();
     const resolution = resolutionForQuality(quality);
     // voiceSettings is parsed for request-shape compatibility but never
-    // wired to anything downstream — matches source (dead field there too).
+    // wired to anything downstream - matches source (dead field there too).
 
     if (!script || script.length < 30) {
       res.status(400).json({ error: 'script is required (min 30 chars)' });
@@ -71,7 +71,7 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
       return;
     }
 
-    // Avatar URLs — handle full https:// and relative /api/r2?key= proxy URLs.
+    // Avatar URLs - handle full https:// and relative /api/r2?key= proxy URLs.
     const avatarUrls: string[] = [];
     for (let i = 0; i < 3; i++) {
       const v = body[`avatarUrl_${i}`];
@@ -85,14 +85,14 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
     }
     console.log(`${LOG} Resolved ${avatarUrls.length} avatar URL(s):`, avatarUrls);
 
-    // Location image files — templates only ever reference #image1-4.
+    // Location image files - templates only ever reference #image1-4.
     const locationBufs: Buffer[] = [];
     for (let i = 0; i < 4; i++) {
       const f = files?.[`locationImage_${i}`]?.[0];
       if (f) locationBufs.push(f.buffer);
     }
 
-    // User's own recorded/uploaded voice, if provided — bypasses TTS
+    // User's own recorded/uploaded voice, if provided - bypasses TTS
     // entirely and goes straight to Seedance as the reference audio.
     const customVoiceFile = files?.customVoiceFile?.[0];
     const customVoiceBuf = customVoiceFile?.buffer ?? null;
@@ -286,8 +286,8 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
       ]);
 
       if (!part1VideoUrl && !part2VideoUrl) {
-        send({ type: 'fatal_error', message: 'Both video generations failed — please check your images and try again.' });
-        throw new Error('Both Seedance video generations failed — see server logs for details.');
+        send({ type: 'fatal_error', message: 'Both video generations failed - please check your images and try again.' });
+        throw new Error('Both Seedance video generations failed - see server logs for details.');
       }
 
       // ── Stage 5: Save asset + finalize ────────────────────────────────
@@ -298,7 +298,7 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
         try {
           await Asset.create({
             userId,
-            name: `Seedance Reel — ${new Date().toLocaleDateString()}`,
+            name: `Seedance Reel - ${new Date().toLocaleDateString()}`,
             url: primaryUrl,
             type: 'clip',
             metadata: { source: 'seedance-reel', part1VideoUrl, part2VideoUrl, part1AudioUrl, part2AudioUrl, language },
@@ -349,7 +349,7 @@ export async function generatePipeline(req: AuthedRequest, res: Response): Promi
   }
 }
 
-// GET /jobs/:jobId — lets a refreshed/reattached tab resume an in-flight
+// GET /jobs/:jobId - lets a refreshed/reattached tab resume an in-flight
 // (or finished) pipeline job instead of re-POSTing to generate-pipeline,
 // which would double-bill credits and double-fire the fal/Seedance calls.
 export async function getJob(req: AuthedRequest, res: Response): Promise<void> {

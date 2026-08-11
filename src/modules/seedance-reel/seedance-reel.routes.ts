@@ -26,7 +26,7 @@ const renderRemotion = createRenderRemotionHandler({
  *   post:
  *     summary: Generate the two Seedance clips for a seedance-reel ("car exit" theme) video
  *     description: >
- *       Streams progress as Server-Sent Events (text/event-stream) — script split, TTS,
+ *       Streams progress as Server-Sent Events (text/event-stream) - script split, TTS,
  *       template reproduction, two parallel Seedance generations, R2 upload, then a
  *       terminal `video_ready`/`done` or `error` event. Not a typical JSON request/response;
  *       consume with an EventSource-style client. Charges the `real_estate_video` credit
@@ -132,7 +132,7 @@ router.post('/preview-script', requireAuth, previewScript);
  *       Streams progress as Server-Sent Events (status/progress/done/error). Called
  *       automatically right after generate-pipeline finishes in the live frontend's
  *       default flow. Body is the ActionReel composition's inputProps (clip URLs,
- *       durations, plus overlays/music/cutRanges/trim fields for shape-compatibility —
+ *       durations, plus overlays/music/cutRanges/trim fields for shape-compatibility -
  *       unpopulated by the default generate flow).
  *     tags: [Seedance Reel]
  *     security:

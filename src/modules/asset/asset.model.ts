@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-// Field-for-field port of thumbpinclient/src/models/Asset.js — same shared
+// Field-for-field port of thumbpinclient/src/models/Asset.js - same shared
 // collection. Used both for the full CRUD surface in asset.controller.ts
 // and directly via Asset.create(...) by every pipeline that records its
 // own generated clips/exports.

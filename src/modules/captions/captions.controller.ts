@@ -9,7 +9,7 @@ import { burnCaptionsAndUpload } from './captions.service';
 const CREDIT_ACTION = 'captions_generation';
 const LOG = '[Captions]';
 
-// POST /captions/generate — JSON in, JSON out (not SSE; VEED subtitle runs
+// POST /captions/generate - JSON in, JSON out (not SSE; VEED subtitle runs
 // are fast enough not to need progress streaming).
 export async function generate(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
@@ -43,7 +43,7 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
 
   // durationSeconds comes from the reel's own composition (durationInFrames
   // / fps) on the client, not an arbitrary value, so it's trustworthy for
-  // pricing purposes — same trust boundary as the source this was ported from.
+  // pricing purposes - same trust boundary as the source this was ported from.
   const { credits: creditsCost } = computeCaptionCreditCost({
     durationSeconds,
     isDynamicPreset: presetConfig.tier === 'dynamic',
@@ -72,13 +72,13 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     });
 
     // Save the captioned/exported video as its own asset so it shows up in
-    // "My Videos" — metadata.source deliberately isn't an EDITABLE_SOURCES
+    // "My Videos" - metadata.source deliberately isn't an EDITABLE_SOURCES
     // key (it's a flattened mp4 with captions burned in, not reopenable as
     // a Remotion composition).
     try {
       await Asset.create({
         userId,
-        name: `Captioned Reel (${presetConfig.label}) — ${new Date().toLocaleDateString()}`,
+        name: `Captioned Reel (${presetConfig.label}) - ${new Date().toLocaleDateString()}`,
         url,
         type: 'video',
         metadata: { source: 'captions-export', preset },
@@ -93,7 +93,7 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     console.error(`${LOG} generate error:`, err);
 
     // VEED still bills us for the attempt even when it fails, so only
-    // refund the margin — keep a flat raw-cost charge instead of a full refund.
+    // refund the margin - keep a flat raw-cost charge instead of a full refund.
     const chargeOnFailure = Math.min(CAPTION_FAILED_RUN_CHARGE_CREDITS, creditsCost);
     const refundAmount = Math.max(0, creditsCost - chargeOnFailure);
     await refundCreditsForAction({

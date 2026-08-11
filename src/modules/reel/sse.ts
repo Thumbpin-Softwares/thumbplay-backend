@@ -22,7 +22,7 @@ export function startSse(req: Request, res: Response): SseSession {
     try {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     } catch {
-      // client likely disconnected — ignore
+      // client likely disconnected - ignore
     }
   };
 

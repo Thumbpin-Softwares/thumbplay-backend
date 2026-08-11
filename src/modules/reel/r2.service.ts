@@ -4,12 +4,12 @@ import { NodeHttpHandler } from '@smithy/node-http-handler';
 import crypto from 'node:crypto';
 import { env } from '../../config/env';
 
-// Port of thumbpinclient/src/lib/r2.js + r2-upload.js — everything the reel
+// Port of thumbpinclient/src/lib/r2.js + r2-upload.js - everything the reel
 // pipelines and the asset module call: uploadToR2, buildUserKey, extFromMime,
 // resolveR2Url, getPresignedUploadUrl. getAssetUrl isn't used anywhere yet
 // (skipped).
 
-// requestHandler timeouts raised above the SDK default — rendered video
+// requestHandler timeouts raised above the SDK default - rendered video
 // buffers can take a while to push over the wire.
 export const s3 = new S3Client({
   region: 'auto',
@@ -64,7 +64,7 @@ export async function uploadToR2(
 }
 
 // Mints a short-lived presigned PUT URL so the browser can upload a file
-// directly to R2, bypassing this server's own request body entirely — same
+// directly to R2, bypassing this server's own request body entirely - same
 // rationale as thumbpinclient's version (Vercel's serverless functions cap
 // request bodies at 4.5MB, well under what a real photo upload needs).
 export async function getPresignedUploadUrl(key: string, contentType: string, expiresIn = 300): Promise<string> {
@@ -74,7 +74,7 @@ export async function getPresignedUploadUrl(key: string, contentType: string, ex
 
 // Resolves an internal `/api/r2?key=...` proxy URL (as handed back by
 // thumbpinclient's asset hooks) into an absolute R2 URL a server-side fetch
-// can actually reach — no-op for already-absolute URLs.
+// can actually reach - no-op for already-absolute URLs.
 export function resolveR2Url(url: string | undefined | null): string | undefined | null {
   if (!url || typeof url !== 'string') return url;
   if (url.startsWith('http')) return url;
@@ -128,7 +128,7 @@ export interface MusicTrack {
   url: string;
 }
 
-// Music/ is a public R2 prefix, so tracks resolve to direct CDN URLs — no
+// Music/ is a public R2 prefix, so tracks resolve to direct CDN URLs - no
 // presigning needed (mirrors thumbpinclient's lib/r2.js getAssetUrl fast path).
 export async function listMusicTracks(): Promise<MusicTrack[]> {
   const list = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: MUSIC_PREFIX }));

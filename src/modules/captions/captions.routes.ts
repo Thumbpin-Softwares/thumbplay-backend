@@ -11,7 +11,7 @@ const router: Router = Router();
  *     summary: Burn in captions on an existing video via VEED subtitles (fal.ai)
  *     description: >
  *       JSON in, JSON out (not SSE). Usage-based pricing: $0.10/min of input video,
- *       ×2 for dynamic (animated) presets, +$0.20/min for translation — charged via
+ *       ×2 for dynamic (animated) presets, +$0.20/min for translation - charged via
  *       a costOverride on the `captions_generation` action, refunded (minus a flat
  *       raw-cost charge) on failure since fal/VEED still bills for failed attempts.
  *     tags: [Captions]
@@ -30,7 +30,7 @@ const router: Router = Router();
  *               language: { type: string }
  *               translationLanguage: { type: string }
  *               position: { type: string }
- *               durationSeconds: { type: number, description: "Trusted — comes from the reel's own composition, not client input" }
+ *               durationSeconds: { type: number, description: "Trusted - comes from the reel's own composition, not client input" }
  *     responses:
  *       200:
  *         description: "{ url, creditsCharged }"

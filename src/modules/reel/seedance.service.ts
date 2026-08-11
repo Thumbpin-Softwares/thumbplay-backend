@@ -2,7 +2,7 @@ import { fal } from './fal-client';
 import { synthesizeVoice } from './tts.service';
 import { uploadToR2, buildUserKey } from './r2.service';
 
-// Port of generateAndUploadTTS + callSeedanceAndUpload — duplicated
+// Port of generateAndUploadTTS + callSeedanceAndUpload - duplicated
 // identically (aside from key prefixes) across all three pipelines.
 
 export async function generateAndUploadTTS(

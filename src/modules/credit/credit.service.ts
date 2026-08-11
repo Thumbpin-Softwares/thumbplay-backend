@@ -7,7 +7,7 @@ import { FREE_QUOTA_LIMITS, CREDIT_ACTIONS, FreeBucket, CreditActionConfig } fro
 // action-reel/comedy-reel preview-script), consumeCreditsForAction +
 // refundCreditsForAction (used by all three template pipelines), and
 // addCredits (used by the Razorpay webhook for paid top-ups). getBatchCost
-// had zero callers anywhere in thumbpinclient — dropped.
+// had zero callers anywhere in thumbpinclient - dropped.
 
 const CREDIT_FIELDS = '_id plan credits freeVideoGenerationsUsed freeAvatarGenerationsUsed';
 
@@ -120,7 +120,7 @@ export type HasSufficientCreditsResult =
   | { ok: false; status: 404; payload: { error: string } }
   | { ok: false; status: 402; payload: CreditErrorPayload; user: IUser | null };
 
-// Read-only affordability check — does NOT deduct anything. Blocks a
+// Read-only affordability check - does NOT deduct anything. Blocks a
 // 0-credit user from using pre-pipeline steps (e.g. script/voice preview)
 // without double-charging on top of the pipeline's own debit/refund.
 export async function hasSufficientCreditsForAction({
@@ -208,7 +208,7 @@ export async function consumeCreditsForAction({
 
   const isFreePlan = (user.plan || 'free') === 'free';
 
-  // Free-quota bucket is tried first — only for flat-cost actions (no
+  // Free-quota bucket is tried first - only for flat-cost actions (no
   // costOverride), matching thumbpinclient's ordering exactly.
   if (isFreePlan && config.freeBucket && costOverride == null) {
     const field = getFreeBucketField(config.freeBucket);
@@ -262,7 +262,7 @@ export async function consumeCreditsForAction({
     };
   }
 
-  // Atomic guarded debit — $gte prevents a race from taking the balance negative.
+  // Atomic guarded debit - $gte prevents a race from taking the balance negative.
   const updated = await User.findOneAndUpdate(
     { _id: userId, credits: { $gte: cost } },
     { $inc: { credits: -cost } },
@@ -378,7 +378,7 @@ export interface AddCreditsInput {
   metadata?: Record<string, unknown>;
 }
 
-// Used by the Razorpay top-up webhook (not ported in this pass) — kept here
+// Used by the Razorpay top-up webhook (not ported in this pass) - kept here
 // since it's live, active credit-system infrastructure.
 export async function addCredits({ userId, amount, action = 'credits_topup', metadata = {} }: AddCreditsInput) {
   if (!amount || amount <= 0) {
@@ -418,7 +418,7 @@ export interface ListTransactionsResult {
 const DEFAULT_TRANSACTIONS_LIMIT = 20;
 const MAX_TRANSACTIONS_LIMIT = 100;
 
-// A user's own credit activity feed — newest first. Fetches one extra row
+// A user's own credit activity feed - newest first. Fetches one extra row
 // (limit + 1) to determine `hasMore` without a separate count query.
 export async function listTransactionsForUser({
   userId,
@@ -446,7 +446,7 @@ export interface AdminAdjustCreditsInput {
   adminEmail: string;
 }
 
-// Ports thumbpinclient's PATCH /api/admin/users/[id]/credits logic — kept
+// Ports thumbpinclient's PATCH /api/admin/users/[id]/credits logic - kept
 // here (rather than raw Mongo updates in the admin controller) so all
 // credit-balance mutation logic lives in one service.
 export async function adminAdjustCredits({ userId, action, amount, adminEmail }: AdminAdjustCreditsInput) {

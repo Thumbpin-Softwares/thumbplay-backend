@@ -1,11 +1,11 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-// Tracks a single model-tour job — either a script-generation job (/script,
+// Tracks a single model-tour job - either a script-generation job (/script,
 // result holds the n8n-generated script JSON) or a video-generation job
-// (/generate, resultUrl holds the final R2 video URL) — driven end-to-end by
+// (/generate, resultUrl holds the final R2 video URL) - driven end-to-end by
 // an n8n workflow. The finalize step lets the user edit the n8n-generated
 // script before generation, so `inputs` holds that script verbatim (n8n owns
-// its shape — gender, master prompt, etc. are added by n8n, not us) rather
+// its shape - gender, master prompt, etc. are added by n8n, not us) rather
 // than a fixed set of fields. Status is effectively binary: running until it isn't.
 export type ModelTourJobStatus = 'running' | 'done' | 'error';
 

@@ -73,7 +73,7 @@ export function me(req: AuthedRequest, res: Response): void {
 
 // `?origin=` is sent by the frontend's own "Continue with Google" link (it
 // knows its own window.location.origin) so we know which of possibly several
-// allowed frontends (FRONTEND_URL) to send the user back to — validated
+// allowed frontends (FRONTEND_URL) to send the user back to - validated
 // against the allow-list, then round-tripped through Google as `state`.
 export function googleRedirect(req: Request, res: Response): void {
   const origin = typeof req.query.origin === 'string' ? req.query.origin : undefined;
@@ -83,7 +83,7 @@ export function googleRedirect(req: Request, res: Response): void {
 
 export async function googleCallback(req: Request, res: Response): Promise<void> {
   const code = typeof req.query.code === 'string' ? req.query.code : undefined;
-  // Re-validate rather than trust verbatim — `state` is a query param on this
+  // Re-validate rather than trust verbatim - `state` is a query param on this
   // request and could in principle be tampered with before it reaches us.
   const frontendUrl = env.resolveFrontendUrl(typeof req.query.state === 'string' ? req.query.state : undefined);
 
@@ -97,7 +97,7 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
     const token = signUserToken(user._id.toString());
     // Set for direct backend calls (e.g. this backend's own /auth/me), but
     // the frontend lives on a different domain and will never see this
-    // cookie — it exchanges the one-time code below for its own instead.
+    // cookie - it exchanges the one-time code below for its own instead.
     setAuthCookie(res, token);
     const handoffCode = createOneTimeCode(user._id.toString());
     res.redirect(`${frontendUrl}/auth/callback?code=${handoffCode}`);
@@ -107,7 +107,7 @@ export async function googleCallback(req: Request, res: Response): Promise<void>
   }
 }
 
-// POST /auth/exchange — called server-to-server by the frontend's own
+// POST /auth/exchange - called server-to-server by the frontend's own
 // backend (not the browser) to trade a one-time handoff code for a fresh
 // token + user, so the frontend can mint its own same-domain cookie.
 export async function exchangeCode(req: Request, res: Response): Promise<void> {

@@ -3,7 +3,7 @@ import { splitWordsIntoChunks } from '../reel/template-reproduce.service';
 // Verbatim port of the "Nosy Padosi" (nosy neighbor) master templates from
 // thumbpinclient/src/app/api/comedy-reel/generate-pipeline/route.js. Part 1
 // has a whisper+shout 3-beat dialogue plus a non-dialogue "shhh" gesture
-// (parenthetical) — buildReproducePrompt below is modified accordingly to
+// (parenthetical) - buildReproducePrompt below is modified accordingly to
 // tell the LLM not to overwrite the gesture with spoken lines.
 
 export const MASTER_TEMPLATE_A = `A hyper-realistic, vertical (9:16) UGC-style comedy real estate vlog. Natural lighting.
@@ -44,9 +44,9 @@ export function buildReproducePrompt({
 }): string {
   return `Reproduce the following video-generation prompt EXACTLY, with ONE change: replace the SPOKEN dialogue (the quoted text following cues like "says," "whispers," "finishes," "continues," or "the voiceover says/starts/continues") with this actual dialogue, which must be spoken in full and unchanged: "${dialogue}"
 
-You decide exactly where to split this dialogue across the spoken-dialogue quotes — it does not have to break at the same word as the example. You may also nudge the timestamp ranges in brackets (e.g. "[0:00 - 0:06]") so the pacing fits the new dialogue naturally — they must still start at 0:00, stay in the same order, and sum to 15 seconds total.
+You decide exactly where to split this dialogue across the spoken-dialogue quotes - it does not have to break at the same word as the example. You may also nudge the timestamp ranges in brackets (e.g. "[0:00 - 0:06]") so the pacing fits the new dialogue naturally - they must still start at 0:00, stay in the same order, and sum to 15 seconds total.
 
-IMPORTANT: if the template contains a short parenthetical quote describing a GESTURE or expression rather than spoken words (for example a "shhh" gesture), leave that one exactly as written — do not replace it with dialogue.
+IMPORTANT: if the template contains a short parenthetical quote describing a GESTURE or expression rather than spoken words (for example a "shhh" gesture), leave that one exactly as written - do not replace it with dialogue.
 
 Do NOT change anything else: keep every camera movement, action description, character description, image reference (#image1, #image2, etc.), and "Hard cut." exactly as written below. Do not invent dialogue beyond the actual dialogue given above.
 
@@ -55,7 +55,7 @@ TEMPLATE TO REPRODUCE (${partLabel}):
 ${masterTemplate}
 """
 
-Return ONLY the finished prompt text — no markdown fences, no preamble, no explanation.`;
+Return ONLY the finished prompt text - no markdown fences, no preamble, no explanation.`;
 }
 
 export function fillTemplateAFallback(dialogue: string): string {

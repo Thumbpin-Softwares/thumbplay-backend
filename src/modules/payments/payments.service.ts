@@ -9,19 +9,19 @@ import { resolvePurchasable } from './payment-plans';
 //
 // Razorpay payment flow has 3 steps:
 //
-//  STEP 1 — createOrder():
+//  STEP 1 - createOrder():
 //    Your backend creates a Razorpay "Order" server-side. Razorpay gives back
 //    an order_id. You embed user_id, credits, item_id, and item_kind in the
 //    order's "notes" field so the webhook later knows who to credit and what
-//    plan to assign — no session needed at webhook time.
+//    plan to assign - no session needed at webhook time.
 //
-//  STEP 2 — Frontend checkout:
+//  STEP 2 - Frontend checkout:
 //    The frontend passes the order_id to the Razorpay JS popup. The user pays.
 //    Razorpay sends a POST to your webhook URL when the payment is captured.
 //
-//  STEP 3 — handleWebhookEvent():
+//  STEP 3 - handleWebhookEvent():
 //    Razorpay hits POST /api/v1/payments/webhook with the payment event.
-//    We HMAC-verify the signature (critical — otherwise anyone could fake it).
+//    We HMAC-verify the signature (critical - otherwise anyone could fake it).
 //    For credit packs  → call addCredits()
 //    For subscription plans → update user.plan + addCredits()
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ export async function createOrder({ userId, itemId }: CreateOrderInput): Promise
   // If Razorpay keys aren't set, return a fake order so you can test the full
   // UI flow without a real Razorpay account.
   if (!env.razorpayKeyId || !env.razorpayKeySecret) {
-    console.warn('[Payments] Razorpay keys not configured — returning mock order for development.');
+    console.warn('[Payments] Razorpay keys not configured - returning mock order for development.');
     return {
       orderId: `order_mock_${Date.now()}`,
       amount: amountPaise,
@@ -86,7 +86,7 @@ export async function createOrder({ userId, itemId }: CreateOrderInput): Promise
     currency: 'INR',
     receipt: `r_${userId}_${Date.now()}`,
     // "notes" travel with the order and are copied onto the payment entity.
-    // The webhook reads these — no session/DB lookup needed at that point.
+    // The webhook reads these - no session/DB lookup needed at that point.
     notes: {
       user_id: userId,
       credits: credits.toString(),
@@ -112,13 +112,13 @@ export async function createOrder({ userId, itemId }: CreateOrderInput): Promise
 // STEP 3a: Verify the webhook signature
 //
 // Razorpay signs every webhook POST body with HMAC-SHA256 using your webhook
-// secret. You MUST verify this before trusting any event — otherwise a bad
+// secret. You MUST verify this before trusting any event - otherwise a bad
 // actor could fake a "payment.captured" event and get free credits.
 // ---------------------------------------------------------------------------
 
 export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
   if (!env.razorpayWebhookSecret) {
-    console.warn('[Payments] RAZORPAY_WEBHOOK_SECRET not set — skipping signature verification (dev only).');
+    console.warn('[Payments] RAZORPAY_WEBHOOK_SECRET not set - skipping signature verification (dev only).');
     return true;
   }
   if (!signature) return false;

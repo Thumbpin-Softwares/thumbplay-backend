@@ -71,7 +71,7 @@ export async function createOrderHandler(req: AuthedRequest, res: Response): Pro
       label: order.label,
       itemId: order.itemId,
       isMock: order.isMock,
-      keyId: env.razorpayKeyId,    // public key — the frontend needs this for the popup
+      keyId: env.razorpayKeyId,    // public key - the frontend needs this for the popup
     });
   } catch (error) {
     console.error('[Payments] createOrder error:', error);
@@ -81,11 +81,11 @@ export async function createOrderHandler(req: AuthedRequest, res: Response): Pro
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/payments/webhook
-// NOT protected by requireAuth — Razorpay sends this, not the browser.
+// NOT protected by requireAuth - Razorpay sends this, not the browser.
 // Security comes from the HMAC-SHA256 signature verification instead.
 //
 // IMPORTANT: This route uses express.raw() (see routes file) so we get the
-// raw Buffer — we must not let express.json() parse this first, because the
+// raw Buffer - we must not let express.json() parse this first, because the
 // HMAC is computed over the exact raw bytes Razorpay sent.
 // ---------------------------------------------------------------------------
 export async function webhookHandler(req: Request, res: Response): Promise<void> {

@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { env } from '../../config/env';
 
 export const ADMIN_COOKIE_NAME = 'admin_token';
-// 8 hours — matches thumbpinclient's admin_session cookie maxAge.
+// 8 hours - matches thumbpinclient's admin_session cookie maxAge.
 const ADMIN_TOKEN_MAX_AGE_SECONDS = 8 * 60 * 60;
 
 export interface AdminJwtPayload {

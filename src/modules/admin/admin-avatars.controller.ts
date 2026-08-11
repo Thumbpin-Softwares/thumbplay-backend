@@ -9,7 +9,7 @@ import {
 
 const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/jpg']);
 
-// GET /admin/avatars — list all collections, or ?collectionId= for one with its full file list.
+// GET /admin/avatars - list all collections, or ?collectionId= for one with its full file list.
 export async function list(req: Request, res: Response): Promise<void> {
   const collectionId = typeof req.query.collectionId === 'string' ? req.query.collectionId : undefined;
 
@@ -27,7 +27,7 @@ export async function list(req: Request, res: Response): Promise<void> {
   res.status(200).json(result);
 }
 
-// POST /admin/avatars — multipart: files[], type, name.
+// POST /admin/avatars - multipart: files[], type, name.
 export async function create(req: Request, res: Response): Promise<void> {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const name = (req.body?.name as string) || `Collection_${Date.now()}`;
@@ -55,7 +55,7 @@ export async function create(req: Request, res: Response): Promise<void> {
   }
 }
 
-// PATCH /admin/avatars — { collectionId, thumbnailKey }
+// PATCH /admin/avatars - { collectionId, thumbnailKey }
 export async function patchThumbnail(req: Request, res: Response): Promise<void> {
   const { collectionId, thumbnailKey } = req.body ?? {};
   if (!collectionId || !thumbnailKey) {
@@ -72,7 +72,7 @@ export async function patchThumbnail(req: Request, res: Response): Promise<void>
   }
 }
 
-// DELETE /admin/avatars — { collectionId }
+// DELETE /admin/avatars - { collectionId }
 export async function remove(req: Request, res: Response): Promise<void> {
   const { collectionId } = req.body ?? {};
   if (!collectionId) {

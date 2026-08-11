@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
-// Field-for-field port of thumbpinclient/src/models/User.js — this backend
+// Field-for-field port of thumbpinclient/src/models/User.js - this backend
 // shares thumbpinclient's MongoDB database/User collection, so the schema
 // must stay wire-compatible (same field names/types/defaults/validators).
 export interface IUser extends Document {

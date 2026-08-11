@@ -36,7 +36,7 @@ export function toPublicUser(user: IUser) {
 }
 
 // ── Google OAuth (Authorization Code flow, via google-auth-library) ────────
-// No NextAuth/Passport here — we drive the redirect + code exchange directly.
+// No NextAuth/Passport here - we drive the redirect + code exchange directly.
 
 const googleClient = new OAuth2Client({
   clientId: env.googleClientId,
@@ -45,7 +45,7 @@ const googleClient = new OAuth2Client({
 });
 
 // `state` carries the originating frontend's origin through the OAuth round
-// trip — Google's callback request has no Origin/Referer header we could
+// trip - Google's callback request has no Origin/Referer header we could
 // otherwise use to know which frontend (localhost, prod, ...) to redirect
 // back to, since FRONTEND_URL can list more than one. Caller is responsible
 // for validating `state` against the FRONTEND_URL allow-list before trusting
@@ -59,7 +59,7 @@ export function getGoogleAuthUrl(state: string): string {
 }
 
 // Exchanges the callback `code` for tokens, verifies the ID token, and
-// upserts/links the user — mirrors thumbpinclient's NextAuth signIn callback.
+// upserts/links the user - mirrors thumbpinclient's NextAuth signIn callback.
 export async function completeGoogleSignIn(code: string): Promise<IUser> {
   const { tokens } = await googleClient.getToken(code);
   if (!tokens.id_token) {

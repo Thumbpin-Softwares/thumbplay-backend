@@ -1,4 +1,4 @@
-// Minimal in-memory TTL cache — single Express process, no external
+// Minimal in-memory TTL cache - single Express process, no external
 // dependency. Good enough as long as this backend runs as one instance;
 // swap for Redis (same get/set/delete shape) if it's ever scaled
 // horizontally, since a per-process cache would then go inconsistent

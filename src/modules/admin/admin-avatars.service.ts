@@ -12,7 +12,7 @@ import { cacheGet, cacheSet, cacheDelete } from '../../lib/cache';
 
 // Port of thumbpinclient's admin avatars routes, which scanned R2 with a
 // fully sequential `for (const obj of objects) { await headObject(obj) }`
-// loop — one round-trip at a time, blocking the whole response until every
+// loop - one round-trip at a time, blocking the whole response until every
 // object in the bucket had been HEAD'd. Same fix shape as the re-avatars
 // module: concurrent HEAD requests + a short cache-aside layer, since this
 // is admin tooling (mutated occasionally, read far more often).
@@ -21,7 +21,7 @@ const PREFIX = 'Avatars/';
 const META_PREFIX = 'Avatars/meta/';
 const CONCURRENCY = 10;
 const CACHE_KEY = 'admin-avatars:v1';
-const CACHE_TTL_MS = 60 * 1000; // short — this data changes whenever an admin uploads/deletes
+const CACHE_TTL_MS = 60 * 1000; // short - this data changes whenever an admin uploads/deletes
 
 export type AdminAvatarType = 'real-estate';
 
@@ -128,7 +128,7 @@ async function scanCollections(): Promise<AdminAvatarCollection[]> {
         const parsed = JSON.parse((await res.Body?.transformToString()) ?? '{}');
         thumbnailKey = parsed.thumbnailKey;
       } catch {
-        // No manifest — fall back to the first file below.
+        // No manifest - fall back to the first file below.
       }
       return {
         id: collId,

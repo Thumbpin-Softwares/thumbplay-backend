@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-// Field-for-field port of thumbpinclient/src/models/SeedanceJob.js — same
+// Field-for-field port of thumbpinclient/src/models/SeedanceJob.js - same
 // shared collection (name "SeedanceJob" kept as-is for wire compatibility).
 // Shared by all three reel pipelines; some fields (part3Cta, avatarVideoUrl,
 // walkthroughVideoUrl, ctaVideoUrl) belong to pipelines not in this port's
@@ -65,7 +65,7 @@ const ReelJobSchema = new Schema<IReelJob>(
 
 ReelJobSchema.index({ userId: 1, createdAt: -1 });
 
-// Model name "SeedanceJob" (not "ReelJob") — must match the collection name
+// Model name "SeedanceJob" (not "ReelJob") - must match the collection name
 // thumbpinclient's Mongoose model uses, since this is the same shared collection.
 export const ReelJob: Model<IReelJob> =
   mongoose.models.SeedanceJob || mongoose.model<IReelJob>('SeedanceJob', ReelJobSchema);

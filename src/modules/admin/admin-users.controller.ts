@@ -5,13 +5,13 @@ import { adminAdjustCredits, AdminCreditAction } from '../credit/credit.service'
 import { AdminRequest } from './admin.middleware';
 
 // Express 5 (path-to-regexp v6+) types repeatable route params as
-// string | string[] — normalize since a plain `:id` segment is always a
+// string | string[] - normalize since a plain `:id` segment is always a
 // single string at runtime.
 function singleParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-// GET /admin/users?q=&page=&limit= — port of thumbpinclient's GET handler.
+// GET /admin/users?q=&page=&limit= - port of thumbpinclient's GET handler.
 export async function listUsers(req: Request, res: Response): Promise<void> {
   const search = typeof req.query.q === 'string' ? req.query.q : '';
   const page = parseInt(typeof req.query.page === 'string' ? req.query.page : '1', 10) || 1;
@@ -37,7 +37,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
 
 const UPDATABLE_FIELDS = ['plan', 'role', 'name'] as const;
 
-// PATCH /admin/users/:id — update plan, role, name.
+// PATCH /admin/users/:id - update plan, role, name.
 export async function updateUser(req: Request, res: Response): Promise<void> {
   const id = singleParam(req.params.id);
   if (!id) {
@@ -65,7 +65,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   res.status(200).json({ success: true, user: updated });
 }
 
-// DELETE /admin/users/:id — delete user account.
+// DELETE /admin/users/:id - delete user account.
 export async function deleteUser(req: Request, res: Response): Promise<void> {
   const id = singleParam(req.params.id);
   if (!id) {
@@ -82,7 +82,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   res.status(200).json({ success: true });
 }
 
-// GET /admin/users/:id/credits — port of thumbpinclient's GET handler.
+// GET /admin/users/:id/credits - port of thumbpinclient's GET handler.
 export async function getUserCredits(req: Request, res: Response): Promise<void> {
   const id = singleParam(req.params.id);
   if (!id) {
@@ -105,7 +105,7 @@ export async function getUserCredits(req: Request, res: Response): Promise<void>
 
 const VALID_ACTIONS: AdminCreditAction[] = ['set', 'add', 'remove'];
 
-// PATCH /admin/users/:id/credits — port of thumbpinclient's PATCH handler.
+// PATCH /admin/users/:id/credits - port of thumbpinclient's PATCH handler.
 export async function updateUserCredits(req: AdminRequest, res: Response): Promise<void> {
   const id = singleParam(req.params.id);
   if (!id) {

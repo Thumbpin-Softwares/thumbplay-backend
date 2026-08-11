@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { env } from './env';
 
-// A long-lived Express process only needs to connect once — unlike
+// A long-lived Express process only needs to connect once - unlike
 // thumbpinclient's serverless global-cache pattern, there's no per-invocation
 // reconnect concern here.
 export async function dbConnect(): Promise<typeof mongoose> {

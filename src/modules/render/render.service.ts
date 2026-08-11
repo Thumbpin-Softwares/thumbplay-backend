@@ -4,9 +4,9 @@ import { join } from 'node:path';
 
 // Port of the getBundle() caching pattern duplicated across all three
 // pipelines' render-remotion routes in the source (each with its own
-// module-level cachedBundleUrl) — centralized here as one cache instead.
+// module-level cachedBundleUrl) - centralized here as one cache instead.
 //
-// entryPoint points at the TS/JSX SOURCE file, not a compiled dist path —
+// entryPoint points at the TS/JSX SOURCE file, not a compiled dist path -
 // @remotion/bundler runs its own independent webpack build (with its own
 // TS/JSX loaders) to produce the Remotion serve bundle, completely separate
 // from however this Express server itself was launched (tsx in dev, compiled
@@ -24,7 +24,7 @@ export async function getBundle(): Promise<string> {
 }
 
 // renderMedia() fetches each remote video URL fresh when OffthreadVideo's
-// frame extractor opens a new clip — a transient connection blip there
+// frame extractor opens a new clip - a transient connection blip there
 // shouldn't fail the whole job when both source videos already exist and
 // cost nothing to re-stitch. Only action-reel/comedy-reel use this in the
 // source (seedance-reel/luxury-car-exit calls renderMedia directly).

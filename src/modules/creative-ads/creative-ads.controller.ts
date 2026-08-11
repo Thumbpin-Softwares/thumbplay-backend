@@ -51,7 +51,7 @@ function parseCreativeAdInput(body: Record<string, unknown>): { input: CreativeA
   };
 }
 
-// POST /creative-ads/generate — streams progress as Server-Sent Events, same
+// POST /creative-ads/generate - streams progress as Server-Sent Events, same
 // shape as model-tour's /generate. Unlike model-tour there's no /script
 // checkpoint or splitter hand-off: the template's n8n webhook builds the
 // prompt and renders the image in a single round-trip, so this is one
@@ -108,7 +108,7 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
 
       await Asset.create({
         userId,
-        name: `${input.propertyName} — ${input.templateKey}`,
+        name: `${input.propertyName} - ${input.templateKey}`,
         url: r2Url,
         type: 'composite',
         metadata: { source: 'creative-ads', templateKey: input.templateKey, jobId },
@@ -157,7 +157,7 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
   }
 }
 
-// GET /creative-ads/jobs/:jobId — resume-on-refresh, same pattern as ModelTourJob.
+// GET /creative-ads/jobs/:jobId - resume-on-refresh, same pattern as ModelTourJob.
 export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
@@ -180,7 +180,7 @@ export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
   res.status(200).json({ job });
 }
 
-// GET /creative-ads/generations — the user's own generations, newest first.
+// GET /creative-ads/generations - the user's own generations, newest first.
 export async function listGenerations(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   if (!userId) {

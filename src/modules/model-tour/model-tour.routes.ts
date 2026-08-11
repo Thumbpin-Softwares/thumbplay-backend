@@ -10,7 +10,7 @@ const propertyUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
 const webhookUploadField = upload.fields([{ name: 'file', maxCount: 1 }]);
 
 // Avatar collection upload moved to the common /avatars/upload endpoint
-// (re-avatars module) — every template posts there now, not here.
+// (re-avatars module) - every template posts there now, not here.
 
 /**
  * @openapi
@@ -67,7 +67,7 @@ router.post('/webhook', webhookUploadField, handleN8nWebhook);
  *   post:
  *     summary: Start the model-tour script generation job (checkpoint step) via the n8n workflow
  *     description: >
- *       Async — responds 202 with a jobId immediately; n8n predicts avatar gender from images,
+ *       Async - responds 202 with a jobId immediately; n8n predicts avatar gender from images,
  *       merges the form inputs, and builds the master prompt for the given property type in the
  *       background (can exceed Vercel's ~60s edge-response timeout). Poll GET
  *       /model-tour/jobs/:jobId until status is "done", then read `result` for the script JSON.

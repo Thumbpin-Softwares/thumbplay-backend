@@ -21,7 +21,7 @@ export type X264Preset =
   | 'veryslow'
   | 'placebo';
 
-// Port of the render-remotion route body, parameterized per pipeline — the
+// Port of the render-remotion route body, parameterized per pipeline - the
 // route itself is identical across all three pipelines in the source except
 // for the renderMedia option profile, temp filename, R2 key prefix, and
 // Asset naming. Two distinct renderMedia profiles exist in the source:
@@ -35,7 +35,7 @@ export interface RenderPipelineConfig {
   assetDisplayName: string;
   assetSource: string;
   // Static per-pipeline value, or omitted to fall back to the request's own
-  // `inputProps.source` — the generic exports/render-remotion route re-tags
+  // `inputProps.source` - the generic exports/render-remotion route re-tags
   // whatever pipeline originally produced the asset being re-exported.
   exportedFrom?: string;
   x264Preset: X264Preset;
@@ -44,7 +44,7 @@ export interface RenderPipelineConfig {
   // Re-encode the rendered output with a short keyframe interval before
   // upload so it stays frame-accurately seekable if reopened/re-cut again
   // (see reel/video-normalize.service.ts). Only worth it for outputs that
-  // are themselves EDITABLE_SOURCES — not final pipeline exports.
+  // are themselves EDITABLE_SOURCES - not final pipeline exports.
   normalizeKeyframes?: boolean;
 }
 
@@ -67,7 +67,7 @@ export function createRenderRemotionHandler(config: RenderPipelineConfig) {
       try {
         res.write(`data: ${JSON.stringify(obj)}\n\n`);
       } catch {
-        // client likely disconnected — ignore
+        // client likely disconnected - ignore
       }
     };
 
@@ -125,11 +125,11 @@ export function createRenderRemotionHandler(config: RenderPipelineConfig) {
         config.exportedFrom ?? (typeof inputProps.source === 'string' ? inputProps.source : config.assetSource);
 
       // metadata.source deliberately isn't reopenable as a Remotion
-      // composition (it's a flattened mp4) — matches source's convention.
+      // composition (it's a flattened mp4) - matches source's convention.
       try {
         await Asset.create({
           userId,
-          name: `${config.assetDisplayName} (exported) — ${new Date().toLocaleDateString()}`,
+          name: `${config.assetDisplayName} (exported) - ${new Date().toLocaleDateString()}`,
           url,
           type: 'video',
           metadata: { source: config.assetSource, exportedFrom },

@@ -104,7 +104,7 @@ ${part2}`;
         part1_tts = parsed.part1!.trim();
         part2_tts = parsed.part2!.trim();
       } else if (parsed) {
-        console.warn('[ReelPipeline] Roman→native conversion incomplete — keeping both parts in Roman for consistency:', parsed);
+        console.warn('[ReelPipeline] Roman→native conversion incomplete - keeping both parts in Roman for consistency:', parsed);
       }
     } catch (err) {
       console.warn('[ReelPipeline] Roman→native conversion failed:', err instanceof Error ? err.message : err);

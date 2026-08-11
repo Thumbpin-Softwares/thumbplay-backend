@@ -80,7 +80,7 @@ router.delete('/', requireAuth, remove);
  *   post:
  *     summary: Upload a single small file (multipart, server-routed)
  *     description: >
- *       Only safe for files within this server's own request body limit — the
+ *       Only safe for files within this server's own request body limit - the
  *       Asset Library page instead uses upload-url + confirm for arbitrary-size uploads.
  *     tags: [Assets]
  *     security:

@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { User } from '../user/user.model';
 import { Asset } from '../asset/asset.model';
 
-// GET /admin/stats — port of thumbpinclient's GET handler. The old route
+// GET /admin/stats - port of thumbpinclient's GET handler. The old route
 // also counted a separate `Video` collection, which belonged to an orphaned
-// prototype feature (deleted) — video counts now come purely from Asset.
+// prototype feature (deleted) - video counts now come purely from Asset.
 export async function stats(_req: Request, res: Response): Promise<void> {
   const [totalUsers, proUsers, totalVideos, totalAvatarAssets, recentUsers, creditStats] = await Promise.all([
     User.countDocuments(),

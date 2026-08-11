@@ -14,7 +14,7 @@ export interface UploadedImage {
 }
 
 // Common upload entry point for every template's "Presenter / Avatar" tile
-// (see thumbpinclient's ModelSelector) — one general collection-upload
+// (see thumbpinclient's ModelSelector) - one general collection-upload
 // endpoint shared across all templates, rather than each template routing
 // to its own pipeline-specific upload route. Creates a permanent Asset
 // (type "presenter") so the collection also shows up in "My Agents" going
@@ -49,7 +49,7 @@ export async function uploadAvatarCollection(userId: string, files: UploadedImag
 
 // Port of thumbpinclient's src/app/api/avatars/re/route.js, moved here for
 // two reasons: (1) it needs no per-request auth hop back out to this same
-// backend — requireAuth already resolved req.user before this runs — and
+// backend - requireAuth already resolved req.user before this runs - and
 // (2) this data is shared across every user and rarely changes, so it's a
 // textbook cache-aside candidate; re-scanning R2 from scratch on every
 // single page load (as the old route did) is exactly what made it slow.
@@ -58,7 +58,7 @@ const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const RE_PREFIX = 'Avatars/RE/';
 const CONCURRENCY = 10;
 const CACHE_KEY = 're-avatars:v1';
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes — shared/prebuilt library, changes rarely
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes - shared/prebuilt library, changes rarely
 
 export interface ReAvatarImage {
   url: string;
@@ -112,7 +112,7 @@ interface HeadMeta {
 
 // Runs the full R2 scan → group-into-collections → per-collection manifest
 // fetch, invoking `onCard` the instant each collection's card is ready
-// (during the manifest phase — the only phase where "which card" is known
+// (during the manifest phase - the only phase where "which card" is known
 // before the whole scan finishes). Returns the complete list for caching.
 export async function scanReAvatars(onCard: (card: ReAvatarCard) => void): Promise<ReAvatarCard[]> {
   const objects = await listReAvatarObjects();
@@ -186,7 +186,7 @@ export async function scanReAvatars(onCard: (card: ReAvatarCard) => void): Promi
         const parsed = JSON.parse((await res.Body?.transformToString()) ?? '{}');
         thumbnailKey = parsed.thumbnailKey;
       } catch {
-        // No manifest — fall back to the first image below.
+        // No manifest - fall back to the first image below.
       }
       const card: ReAvatarCard = {
         id: col.id,

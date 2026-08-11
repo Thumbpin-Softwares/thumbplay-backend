@@ -5,10 +5,10 @@ import { env } from '../../config/env';
 import { UserJwtPayload } from './auth.types';
 
 export const AUTH_COOKIE_NAME = 'auth_token';
-// 30 days — matches NextAuth's session maxAge in thumbpinclient/src/lib/auth-config.js.
+// 30 days - matches NextAuth's session maxAge in thumbpinclient/src/lib/auth-config.js.
 const TOKEN_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
-// Payload is intentionally minimal (just the user id) — request handlers
+// Payload is intentionally minimal (just the user id) - request handlers
 // always reload fresh user data from the DB rather than trusting token claims.
 export function signUserToken(userId: string): string {
   return jwt.sign({ sub: userId }, env.jwtSecret, { expiresIn: TOKEN_MAX_AGE_SECONDS });
@@ -39,7 +39,7 @@ export function clearAuthCookie(res: Response): void {
 // cookies). Instead we hand the frontend a short-lived, single-use opaque
 // code via the redirect URL; its server then exchanges that code
 // server-to-server (POST /auth/exchange) for a token it can set as its own
-// same-domain cookie. In-memory only — fine for a single backend instance;
+// same-domain cookie. In-memory only - fine for a single backend instance;
 // switch to Redis if this backend is ever horizontally scaled.
 const ONE_TIME_CODE_TTL_MS = 60 * 1000;
 const oneTimeCodes = new Map<string, { userId: string; expiresAt: number }>();

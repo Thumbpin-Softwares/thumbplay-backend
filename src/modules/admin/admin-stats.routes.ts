@@ -8,7 +8,7 @@ const router: Router = Router();
  * @openapi
  * /admin/stats:
  *   get:
- *     summary: Dashboard stats — user counts, credit totals, recent signups
+ *     summary: Dashboard stats - user counts, credit totals, recent signups
  *     tags: [Admin Auth]
  *     security:
  *       - adminCookieAuth: []

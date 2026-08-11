@@ -38,7 +38,7 @@ app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is healthy' });
 });
 
-// API Documentation — generated from @openapi JSDoc blocks above each route
+// API Documentation - generated from @openapi JSDoc blocks above each route
 // registration (see src/modules/*/*.routes.ts). Add a block there whenever a
 // new route is added; this mount point never needs to change.
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// CREDIT PACKS — one-time top-up purchases
+// CREDIT PACKS - one-time top-up purchases
 // amountINR is in ₹ rupees. Razorpay receives amountINR × 100 as paise.
 // ---------------------------------------------------------------------------
 export interface CreditPack {
@@ -20,7 +20,7 @@ export const CREDIT_PACKS: Record<string, CreditPack> = {
 };
 
 // ---------------------------------------------------------------------------
-// SUBSCRIPTION PLANS — yearly plans shown on the pricing page
+// SUBSCRIPTION PLANS - yearly plans shown on the pricing page
 //
 // These are billed as one-time Razorpay orders for now (recurring Razorpay
 // Subscriptions can be wired up in phase 2). When a payment.captured webhook
@@ -28,7 +28,7 @@ export const CREDIT_PACKS: Record<string, CreditPack> = {
 //  • the user's `plan` field is updated to `planTier` (e.g. 'pro')
 //  • `credits` are added to their account
 //
-// The user schema only has 'free' | 'pro' right now — map Creator/Studio/Enterprise
+// The user schema only has 'free' | 'pro' right now - map Creator/Studio/Enterprise
 // all to 'pro' until the schema is extended.
 // ---------------------------------------------------------------------------
 export type PlanTier = 'free' | 'pro';

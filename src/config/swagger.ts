@@ -6,7 +6,7 @@ import { env } from './env';
 const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
 
 // Spec is generated from @openapi JSDoc blocks above each route registration
-// (see src/modules/*/*.routes.ts) — add one whenever a new route is added,
+// (see src/modules/*/*.routes.ts) - add one whenever a new route is added,
 // this file itself never needs to change for that.
 const options = {
   definition: {
@@ -15,7 +15,7 @@ const options = {
       title: 'ThumbpinVids API',
       version: pkg.version || '1.0.0',
       description:
-        "Backend API for ThumbpinVids — replicates (and will eventually replace) the Next.js API routes in thumbpinclient.",
+        "Backend API for ThumbpinVids - replicates (and will eventually replace) the Next.js API routes in thumbpinclient.",
     },
     servers: [{ url: `${env.backendPublicUrl}/api/v1`, description: env.isProduction ? 'Server' : 'Local dev' }],
     components: {
@@ -111,7 +111,7 @@ const options = {
     },
   },
   // Both patterns kept so this resolves whether run via `tsx` (dev, .ts
-  // sources) or `node dist/server.js` (prod, compiled .js — comments survive
+  // sources) or `node dist/server.js` (prod, compiled .js - comments survive
   // tsc since removeComments isn't set).
   apis: ['./src/modules/**/*.routes.ts', './dist/modules/**/*.routes.js'],
 };

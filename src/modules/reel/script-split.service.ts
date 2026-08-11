@@ -1,9 +1,9 @@
 import { callLLM } from './llm.service';
 
-// Port of the script-split LLM call duplicated across all three pipelines —
+// Port of the script-split LLM call duplicated across all three pipelines -
 // identical except the video-style phrase in the prompt (seedance-reel and
 // action-reel both use "a fast-paced, high-energy vertical reel video";
-// comedy-reel uses "a fast-paced comedy vertical reel video") — passed in as
+// comedy-reel uses "a fast-paced comedy vertical reel video") - passed in as
 // `styleLabel` rather than hardcoded.
 
 export interface SplitScriptResult {
@@ -18,8 +18,8 @@ export async function splitScript(script: string, styleLabel: string): Promise<S
 
 RULES:
 - Part 1 (HOOK ≤40 words): Opening hook. High energy, attention-grabbing, presenter speaks directly to camera. Must end at a natural sentence boundary.
-- Part 2 (HIGHLIGHTS + CTA ≤45 words): Property highlights followed by whatever closing/call-to-action line already exists in the script. Do not invent a new CTA — keep the one in the script.
-- Do NOT change, add, or remove any words — split at natural sentence boundaries only.
+- Part 2 (HIGHLIGHTS + CTA ≤45 words): Property highlights followed by whatever closing/call-to-action line already exists in the script. Do not invent a new CTA - keep the one in the script.
+- Do NOT change, add, or remove any words - split at natural sentence boundaries only.
 - Return ONLY valid JSON, no markdown: {"part1": "...", "part2": "..."}
 
 SCRIPT:

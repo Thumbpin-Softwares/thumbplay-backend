@@ -10,7 +10,7 @@ export interface BurnCaptionsInput {
 }
 
 // fal/VEED validation errors come back as { body: { detail: [{ loc, msg }] } }
-// rather than a plain message — surface the real reason (e.g. "bad preset")
+// rather than a plain message - surface the real reason (e.g. "bad preset")
 // instead of a generic "request failed".
 function extractFalErrorMessage(err: unknown): string {
   const body = (err as { body?: { detail?: unknown } } | undefined)?.body;

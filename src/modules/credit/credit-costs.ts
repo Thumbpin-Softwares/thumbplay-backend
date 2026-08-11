@@ -1,8 +1,8 @@
-// Port of thumbpinclient/src/lib/credit-costs.js — trimmed to only the
+// Port of thumbpinclient/src/lib/credit-costs.js - trimmed to only the
 // actions actually charged by what's migrated to this backend so far
 // (seedance-reel, action-reel, comedy-reel, captions). thumbpinclient's
 // catalog has ~13 more entries for features (avatar training, image gen,
-// etc.) that aren't part of this backend yet — add them here if/when those
+// etc.) that aren't part of this backend yet - add them here if/when those
 // get ported too.
 
 export type FreeBucket = 'video' | 'avatar';
@@ -24,19 +24,22 @@ export const CREDIT_ACTIONS: Record<string, CreditActionConfig> = {
   real_estate_video: { cost: 3, freeBucket: 'video', label: 'Real Estate Persona Video' },
   // action-reel + comedy-reel
   action_reel_video: { cost: 4, freeBucket: 'video', label: 'Action Reel Video' },
-  // cost is a placeholder — captions are priced dynamically per job via
+  // cost is a placeholder - captions are priced dynamically per job via
   // computeCaptionCreditCost() below and passed in as a costOverride.
   captions_generation: { cost: 0, freeBucket: null, label: 'Caption Generation' },
-  // cost is a placeholder — priced dynamically per job from n8n's reported
+  // cost is a placeholder - priced dynamically per job from n8n's reported
   // `cost` field via computeCreditsFromRawCost() below, passed as a costOverride.
   model_tour_script_generation: { cost: 0, freeBucket: null, label: 'Model Tour Script Generation' },
-  // creative-ads: flat cost, charged up front — cheaper than a video (single
+  // creative-ads: flat cost, charged up front - cheaper than a video (single
   // image call vs six clips), so no free bucket and no per-job dynamic pricing.
   creative_ad_generation: { cost: 2, freeBucket: null, label: 'Creative Ad Generation' },
+  // studio: single direct-to-fal Seedance call (image-to-video, no TTS/split/
+  // combine), shares the 'video' free bucket with real_estate_video/action_reel_video.
+  studio_drone_flythrough: { cost: 3, freeBucket: 'video', label: 'Studio Drone Flythrough' },
 };
 
 // Generic USD-cost -> credits conversion, same margin/peg as captions but
-// without the duration-based buildup captions need — used for actions that
+// without the duration-based buildup captions need - used for actions that
 // report back a raw infra cost directly (e.g. the model-tour script
 // webhook's `cost` field) instead of one computed from job parameters.
 export function computeCreditsFromRawCost(
@@ -49,7 +52,7 @@ export function computeCreditsFromRawCost(
   return { rawCostUsd: rawCostUsd || 0, sellingPriceUsd, credits };
 }
 
-// VEED subtitles ("captions_generation") pricing — usage-based instead of a
+// VEED subtitles ("captions_generation") pricing - usage-based instead of a
 // flat catalog cost. Port of thumbpinclient/src/lib/credit-costs.js. Real
 // infra cost formula from the VEED/fal pricing:
 //   $0.10 / minute of input video
@@ -70,7 +73,7 @@ export const CAPTION_PRICING = {
 };
 
 // fal.ai/VEED bills us ~$0.10 for a subtitle run the moment it's submitted,
-// regardless of whether it succeeds — so a failed run still costs us real
+// regardless of whether it succeeds - so a failed run still costs us real
 // money. Refunding the full charge on failure would mean eating that cost
 // every time, so we keep a flat raw-cost charge (no margin) instead.
 export const CAPTION_FAILED_RUN_CHARGE_CREDITS = Math.round(

@@ -12,7 +12,7 @@ const router: Router = Router();
  *     description: >
  *       Streams progress as Server-Sent Events. Each templateKey maps to its own n8n webhook
  *       (see creative-ads.service.ts) that builds the prompt and renders the final image in a
- *       single round-trip — unlike model-tour there's no separate script/edit checkpoint or
+ *       single round-trip - unlike model-tour there's no separate script/edit checkpoint or
  *       splitter hand-off. Charges the `creative_ad_generation` credit action up front, refunded
  *       on failure.
  *     tags: [Creative Ads]

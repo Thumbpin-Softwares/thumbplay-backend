@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-// Field-for-field port of thumbpinclient/src/models/CreditTransaction.js —
+// Field-for-field port of thumbpinclient/src/models/CreditTransaction.js -
 // same shared collection as thumbpinclient, so enum values must stay in sync.
 export type CreditEventType =
   | 'free_quota_consumed'
@@ -75,7 +75,7 @@ const CreditTransactionSchema = new Schema<ICreditTransaction>(
 );
 
 // Newest-first is the only access pattern this collection is queried with
-// (a user's own activity feed) — index matches that exactly.
+// (a user's own activity feed) - index matches that exactly.
 CreditTransactionSchema.index({ userId: 1, createdAt: -1 });
 
 export const CreditTransaction: Model<ICreditTransaction> =

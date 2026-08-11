@@ -8,7 +8,7 @@ const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/g
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'private, no-store, no-cache, must-revalidate' };
 
-// GET /assets — list, paginated, optionally type-filtered (comma-separated
+// GET /assets - list, paginated, optionally type-filtered (comma-separated
 // for $in). Belt-and-suspenders no-store headers: query params like
 // ?page=1&limit=24 are identical across every user, so any cache layer that
 // ignores the Cookie/Authorization header could otherwise serve user A's
@@ -41,7 +41,7 @@ export async function list(req: AuthedRequest, res: Response): Promise<void> {
   });
 }
 
-// GET /user/videos — video/clip subset, its own response shape (not the
+// GET /user/videos - video/clip subset, its own response shape (not the
 // same as list()'s) matching thumbpinclient's dedicated route exactly,
 // since modules/edit/components/video-picker reads `videos`/`pagination`
 // (not `hasMore`) from it.
@@ -81,7 +81,7 @@ export async function listVideos(req: AuthedRequest, res: Response): Promise<voi
   });
 }
 
-// PATCH /assets?id= — rename, or (thumbnailUrl set) reorder a collection's
+// PATCH /assets?id= - rename, or (thumbnailUrl set) reorder a collection's
 // metadata.urls so the chosen photo becomes the cover everywhere it's read
 // (asset.url / urls[0]).
 export async function update(req: AuthedRequest, res: Response): Promise<void> {
@@ -166,8 +166,8 @@ export async function remove(req: AuthedRequest, res: Response): Promise<void> {
 
 type UploadFile = { buffer: Buffer; mimetype: string; originalname?: string; size: number };
 
-// POST /assets/upload — single-shot multipart upload, server-side. Only
-// safe for small files (this server's own request body limit) — the
+// POST /assets/upload - single-shot multipart upload, server-side. Only
+// safe for small files (this server's own request body limit) - the
 // Asset Library page instead uses the upload-url/confirm presigned flow
 // for arbitrary-size uploads.
 export async function uploadSingle(req: AuthedRequest, res: Response): Promise<void> {
@@ -188,7 +188,7 @@ export async function uploadSingle(req: AuthedRequest, res: Response): Promise<v
     return;
   }
   // thumbpinclient's version defaulted an unset `type` to "general", which
-  // isn't a valid Asset.type enum value — every real caller already passes
+  // isn't a valid Asset.type enum value - every real caller already passes
   // one, so this just rejects the gap instead of carrying a dormant 500.
   if (!type) {
     res.status(400).json({ error: 'type is required' });
@@ -211,7 +211,7 @@ export async function uploadSingle(req: AuthedRequest, res: Response): Promise<v
     userId,
     name: name.trim().substring(0, 100),
     url,
-    // Mongoose validates this against the real enum at write time — a bad
+    // Mongoose validates this against the real enum at write time - a bad
     // value 400s here just as it would have with an unvalidated cast.
     type: type as AssetType,
     metadata: { is_custom: true, r2Key: key, originalName: file.originalname || '' },
@@ -220,7 +220,7 @@ export async function uploadSingle(req: AuthedRequest, res: Response): Promise<v
   res.status(200).json({ success: true, asset });
 }
 
-// POST /assets/upload-url — step 1 of the direct-to-R2 upload flow: mint a
+// POST /assets/upload-url - step 1 of the direct-to-R2 upload flow: mint a
 // presigned PUT URL (tiny JSON, no file bytes) instead of routing the file
 // through this server. The client PUTs straight to R2, then calls /confirm.
 export async function mintUploadUrl(req: AuthedRequest, res: Response): Promise<void> {
@@ -253,9 +253,9 @@ export async function mintUploadUrl(req: AuthedRequest, res: Response): Promise<
   res.status(200).json({ uploadUrl, key, publicUrl });
 }
 
-// POST /assets/confirm — step 2 of the direct-to-R2 flow: persist the Asset
+// POST /assets/confirm - step 2 of the direct-to-R2 flow: persist the Asset
 // doc after the client has already PUT the file straight to the presigned
-// URL. The key must fall under this user's own prefix — upload-url only
+// URL. The key must fall under this user's own prefix - upload-url only
 // ever issues keys there, so anything else means a client trying to
 // register someone else's key (or an arbitrary external URL) as its own.
 export async function confirmUpload(req: AuthedRequest, res: Response): Promise<void> {
@@ -282,7 +282,7 @@ export async function confirmUpload(req: AuthedRequest, res: Response): Promise<
     return;
   }
   // thumbpinclient's version defaulted an unset `type` to "general", which
-  // isn't a valid Asset.type enum value — every real caller already passes
+  // isn't a valid Asset.type enum value - every real caller already passes
   // one, so this just rejects the gap instead of carrying a dormant 500.
   if (!type) {
     res.status(400).json({ error: 'type is required' });

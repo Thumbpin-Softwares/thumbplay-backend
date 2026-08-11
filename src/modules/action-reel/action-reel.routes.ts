@@ -23,7 +23,7 @@ const renderRemotion = createRenderRemotionHandler({
  *   post:
  *     summary: Generate the two Seedance clips for an action-reel ("helicopter") video
  *     description: >
- *       Streams progress as Server-Sent Events (text/event-stream) — same shape as
+ *       Streams progress as Server-Sent Events (text/event-stream) - same shape as
  *       seedance-reel's generate-pipeline. Charges the `action_reel_video` credit action.
  *     tags: [Action Reel]
  *     security:

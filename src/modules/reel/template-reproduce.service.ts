@@ -1,6 +1,6 @@
 import { callLLM } from './llm.service';
 
-// Generic engine behind each pipeline's master-template reproduction —
+// Generic engine behind each pipeline's master-template reproduction -
 // identical control flow across all three pipelines (LLM reproduce →
 // validate → deterministic fallback). Each pipeline supplies its own
 // `buildPrompt` since comedy-reel's version has genuinely different wording

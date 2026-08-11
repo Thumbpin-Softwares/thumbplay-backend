@@ -4,7 +4,7 @@ import { hasSufficientCreditsForAction } from '../credit/credit.service';
 import { synthesizeVoice } from './tts.service';
 
 // Port of action-reel/comedy-reel's preview-script route (byte-identical in
-// the source aside from the log prefix) — previews the user's actual typed
+// the source aside from the log prefix) - previews the user's actual typed
 // script text. Fully ephemeral (no R2 upload, no DB write), but still gates
 // on affordability (read-only check, no deduction) so a 0-credit user can't
 // burn real TTS calls on previews they could never actually render.

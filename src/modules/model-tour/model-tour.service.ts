@@ -28,10 +28,10 @@ export interface UploadedImage {
 }
 
 // Avatar/presenter collection upload now lives in the re-avatars module as
-// the one common endpoint every template posts to — see
+// the one common endpoint every template posts to - see
 // re-avatars/re-avatars.service.ts's uploadAvatarCollection.
 
-// Same contract as thumbpinclient's /api/assets/upload (single file) —
+// Same contract as thumbpinclient's /api/assets/upload (single file) -
 // property photos land in the general Asset library too, same as every
 // other template's PropertyImages upload.
 export async function uploadPropertyImage(userId: string, file: UploadedImage, name: string) {
@@ -55,7 +55,7 @@ export async function uploadPropertyImage(userId: string, file: UploadedImage, n
 
 export type PropertyType = 'residential' | 'commercial' | 'plotted';
 
-// Which template's script-generation webhook to call — every other stage
+// Which template's script-generation webhook to call - every other stage
 // (video render, splitter/voice-change) is shared infra reused across
 // templates, only the script webhook differs per template.
 export type ModelTourTemplateKey = 'model-tour' | 'luxury-car-exit';
@@ -77,7 +77,7 @@ export interface OmniHomeTourInput {
   // Set when the user wrote the script themselves (SiteForm's Manual Script
   // mode) instead of having n8n generate it from the descriptive fields
   // above. Presence of this field is what selects the manual payload shape
-  // in generateModelTourScript — the AI-guidance fields (location/
+  // in generateModelTourScript - the AI-guidance fields (location/
   // connectivity/carpetArea/amenities/tonality/vibe) are meaningless once
   // the final voiceover text is already decided, so they're dropped rather
   // than sent empty.
@@ -94,7 +94,7 @@ function optionalString(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
-// Step 1: Script generation webhook — raw form inputs → n8n returns storyboard JSON.
+// Step 1: Script generation webhook - raw form inputs → n8n returns storyboard JSON.
 // Per-template: each template has its own n8n workflow for turning form
 // inputs into a script, keyed by ModelTourTemplateKey. Falls back to
 // "model-tour" (real estate) when no template is specified.
@@ -103,11 +103,11 @@ const N8N_SCRIPT_WEBHOOKS: Record<ModelTourTemplateKey, string> = {
   'luxury-car-exit': 'https://wrk-413d.apps.excloud.co.in/webhook/2aa4d5ec-60d1-45fc-97ca-792b851825c7',
 };
 
-// Step 2: Video generation webhook — (possibly edited) script JSON → n8n renders
+// Step 2: Video generation webhook - (possibly edited) script JSON → n8n renders
 // all 6 video clips with voice and merges them, returns { video: { url } }.
 const N8N_VIDEO_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/426fc4a4-44b9-4527-8ac5-3fe3e3ed9ce3';
 
-// Step 3: Splitter + voice-change webhook — sends merged video URL + jobId + userId.
+// Step 3: Splitter + voice-change webhook - sends merged video URL + jobId + userId.
 // This n8n workflow splits audio, changes voice, re-merges, then POSTs the final
 // video URL back to our backend at POST /api/v1/model-tour/webhook.
 const N8N_SPLITTER_WEBHOOK_URL = env.n8nSplitterWebhookUrl;
@@ -170,11 +170,11 @@ export async function generateModelTourScript(
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     console.error(`[ModelTour] n8n script webhook ${res.status} ${res.statusText}:`, body);
-    throw new Error(`Failed to generate model-tour script: ${res.statusText}${body ? ` — ${body}` : ''}`);
+    throw new Error(`Failed to generate model-tour script: ${res.statusText}${body ? ` - ${body}` : ''}`);
   }
 
   // n8n's "Respond to Webhook" node (JSON mode fed by a normal node's
-  // output) wraps the result as an array of items — [{...}] — rather than
+  // output) wraps the result as an array of items - [{...}] - rather than
   // returning the object directly, so unwrap that shape if present.
   let script: unknown = await res.json();
   if (Array.isArray(script)) script = script[0];
@@ -208,10 +208,10 @@ export async function triggerModelTourGeneration(
   if (!videoRes.ok) {
     const body = await videoRes.text().catch(() => '');
     console.error(`[ModelTour] n8n video webhook ${videoRes.status} ${videoRes.statusText}:`, body);
-    throw new Error(`Failed to trigger model-tour generation: ${videoRes.statusText}${body ? ` — ${body}` : ''}`);
+    throw new Error(`Failed to trigger model-tour generation: ${videoRes.statusText}${body ? ` - ${body}` : ''}`);
   }
 
-  // n8n returns the merged video — unwrap array if needed
+  // n8n returns the merged video - unwrap array if needed
   let videoData: unknown = await videoRes.json();
   if (Array.isArray(videoData)) videoData = videoData[0];
 
@@ -222,7 +222,7 @@ export async function triggerModelTourGeneration(
   console.log(`[ModelTour] Got merged video from n8n: ${mergedVideoUrl}`);
 
   // ── Step 3: Forward to splitter/voice-changer n8n workflow ─────────────────
-  // This is fire-and-forget from the backend's perspective — the splitter
+  // This is fire-and-forget from the backend's perspective - the splitter
   // workflow will call our POST /api/v1/model-tour/webhook when it's done,
   // which marks the job as done and unblocks the SSE polling loop.
   console.log(`[ModelTour] Forwarding to splitter webhook for job ${jobId}`);
@@ -239,5 +239,5 @@ export async function triggerModelTourGeneration(
     throw new Error(`Failed to hand off to splitter: ${splitterRes.statusText}`);
   }
 
-  console.log(`[ModelTour] Job ${jobId} handed off to splitter — waiting for backend webhook callback`);
+  console.log(`[ModelTour] Job ${jobId} handed off to splitter - waiting for backend webhook callback`);
 }

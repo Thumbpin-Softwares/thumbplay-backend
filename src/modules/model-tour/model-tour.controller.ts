@@ -25,7 +25,7 @@ const TEMPLATE_KEYS = new Set<ModelTourTemplateKey>(['model-tour', 'luxury-car-e
 
 type UploadFiles = Record<string, Express.Multer.File[]>;
 
-// Shared by /script and /generate — both take the same raw form fields as
+// Shared by /script and /generate - both take the same raw form fields as
 // their starting point (the latter only when there's no edited script yet).
 function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHomeTourInput } | { error: string } {
   const propertyName = ((body.propertyName as string) || '').toString().trim();
@@ -73,10 +73,10 @@ function parseOmniHomeTourInput(body: Record<string, unknown>): { input: OmniHom
   return { input };
 }
 
-// POST /model-tour/script — the "checkpoint" step: raw form fields in, a
+// POST /model-tour/script - the "checkpoint" step: raw form fields in, a
 // jobId back out immediately (202). The n8n call that actually builds the
 // script can run past Vercel's ~60s edge-response timeout, so this can't be
-// a plain blocking request/response — the job runs in the background and the
+// a plain blocking request/response - the job runs in the background and the
 // finalize step polls GET /model-tour/jobs/:jobId (same job model/endpoint
 // /generate already uses) until `result` holds the script JSON.
 export async function getScript(req: AuthedRequest, res: Response): Promise<void> {
@@ -127,7 +127,7 @@ export async function getScript(req: AuthedRequest, res: Response): Promise<void
         }
       } catch (chargeError) {
         // Billing must never turn an already-generated script into a
-        // job-level error — log and let the script through regardless.
+        // job-level error - log and let the script through regardless.
         console.error(`${LOG} script credit charge error for job ${jobId}:`, chargeError);
       }
     }
@@ -140,7 +140,7 @@ export async function getScript(req: AuthedRequest, res: Response): Promise<void
   }
 }
 
-// POST /model-tour/upload/property — multipart single `file` + name.
+// POST /model-tour/upload/property - multipart single `file` + name.
 export async function uploadProperty(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   if (!userId) {
@@ -167,9 +167,9 @@ export async function uploadProperty(req: AuthedRequest, res: Response): Promise
   }
 }
 
-// POST /model-tour/generate — JSON body: { jobId, script }. `script` is the
+// POST /model-tour/generate - JSON body: { jobId, script }. `script` is the
 // JSON returned by /model-tour/script, as (possibly) edited by the user in
-// the finalize step — we pass it straight back to n8n, we don't reshape it.
+// the finalize step - we pass it straight back to n8n, we don't reshape it.
 export async function generate(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   let debit: ConsumeDebit | undefined;
@@ -275,7 +275,7 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
   }
 }
 
-// GET /model-tour/jobs/:jobId — resume-on-refresh, same pattern as ReelJob.
+// GET /model-tour/jobs/:jobId - resume-on-refresh, same pattern as ReelJob.
 export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
@@ -298,7 +298,7 @@ export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
   res.status(200).json({ job });
 }
 
-// GET /model-tour/generations — the user's own generations, newest first,
+// GET /model-tour/generations - the user's own generations, newest first,
 // powering the "Generations" tab (in-progress jobs included, not just done ones).
 export async function listGenerations(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
@@ -319,7 +319,7 @@ export async function listGenerations(req: AuthedRequest, res: Response): Promis
   res.status(200).json({ jobs, total, page, totalPages: Math.ceil(total / limit) });
 }
 
-// POST /model-tour/webhook — called by n8n with JSON body containing final video URL.
+// POST /model-tour/webhook - called by n8n with JSON body containing final video URL.
 // n8n sends: { jobId, userId, videoUrl } where videoUrl is the URL of the processed video.
 // The backend downloads the video from the URL and uploads it to R2.
 export async function handleN8nWebhook(req: Request, res: Response): Promise<void> {
@@ -358,13 +358,13 @@ export async function handleN8nWebhook(req: Request, res: Response): Promise<voi
     // Create Asset in the user's library
     await Asset.create({
       userId,
-      name: `Home Tour — ${job.propertyName}`,
+      name: `Home Tour - ${job.propertyName}`,
       url: r2VideoUrl,
       type: 'video',
       metadata: { source: 'model-tour', jobId },
     });
 
-    // Mark job as done — the SSE polling loop in /generate will pick this up
+    // Mark job as done - the SSE polling loop in /generate will pick this up
     await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', resultUrl: r2VideoUrl } });
 
     console.log(`${LOG} Job ${jobId} completed. Video saved to R2: ${r2VideoUrl}`);

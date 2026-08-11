@@ -1,10 +1,10 @@
-// Port of thumbpinclient/src/lib/remotion/ActionReelComposition.jsx — the
+// Port of thumbpinclient/src/lib/remotion/ActionReelComposition.jsx - the
 // shared "ActionReel" composition used by all three reel pipelines'
 // render-remotion export (composition id "ActionReel" is literally shared
 // across seedance-reel/action-reel/comedy-reel in the source).
 //
 // Background music uses the classic, stable `remotion` Audio (ffmpeg-based
-// extraction) rather than @remotion/media's — that package is explicitly
+// extraction) rather than @remotion/media's - that package is explicitly
 // "Experimental WebCodecs-based media tags" and would silently drop the
 // music track on codec/format edge cases some stock MP3s hit.
 import { AbsoluteFill, Img, Sequence, OffthreadVideo, useVideoConfig, Audio } from 'remotion';
@@ -79,8 +79,8 @@ export interface ActionReelContentProps {
   musicVolume?: number | undefined;
 }
 
-// part2VideoUrl is optional — a single flattened re-export only ever
-// populates part1. Hard cut between the two — no crossfade — matches the
+// part2VideoUrl is optional - a single flattened re-export only ever
+// populates part1. Hard cut between the two - no crossfade - matches the
 // fast-paced UGC aesthetic.
 function ReelContent({
   part1VideoUrl = '',
@@ -112,7 +112,7 @@ function ReelContent({
         </Sequence>
       )}
 
-      {/* User text/image overlays — on top of everything, full duration.
+      {/* User text/image overlays - on top of everything, full duration.
           Array order is the stacking order: later entries render on top. */}
       {overlays.length > 0 && (
         <AbsoluteFill>
@@ -147,7 +147,7 @@ export interface ActionReelCompositionProps extends ActionReelContentProps {
 // (original-timeline frame ranges the user deleted) get rippled into a
 // shorter virtual timeline via nested Sequences. This pass's own
 // generate→render flow never populates cutRanges (always []), so this
-// always renders the full, uncut ReelContent in practice — kept for prop
+// always renders the full, uncut ReelContent in practice - kept for prop
 // shape compatibility with the composition the (out-of-scope) editor drives.
 export function ActionReelComposition({ cutRanges = [], ...rest }: ActionReelCompositionProps) {
   const totalOriginalFrames = originalDurationFor(rest);
@@ -170,7 +170,7 @@ export function ActionReelComposition({ cutRanges = [], ...rest }: ActionReelCom
   );
 }
 
-// Total composition length after cuts — use this (not the raw
+// Total composition length after cuts - use this (not the raw
 // calcActionReelBaseDurationInFrames) anywhere the actual Player/export
 // duration is needed.
 export function calcActionReelDurationInFrames({ cutRanges = [], ...rest }: ActionReelCompositionProps): number {

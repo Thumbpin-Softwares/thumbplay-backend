@@ -1,10 +1,10 @@
-// Bounded-concurrency worker pool — unlike a naive "batch of N, await all,
+// Bounded-concurrency worker pool - unlike a naive "batch of N, await all,
 // next batch of N" loop, this starts a new item the instant a slot frees up
 // rather than waiting for the slowest item in each fixed-size batch, and
 // (via `onResult`) can report each result the moment it's ready instead of
 // only after every item has finished. That's what makes true progressive
 // streaming possible instead of a compute-everything-then-dump-it-all.
-// A single item failing (e.g. one bad R2 object) doesn't abort the rest —
+// A single item failing (e.g. one bad R2 object) doesn't abort the rest -
 // matches the old Promise.allSettled-based batching's tolerance, just
 // without waiting for an entire batch to settle before starting the next.
 export async function mapConcurrent<T, R>(

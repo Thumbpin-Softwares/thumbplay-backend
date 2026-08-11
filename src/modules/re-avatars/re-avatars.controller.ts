@@ -6,10 +6,10 @@ import { getReAvatars, ReAvatarCard, uploadAvatarCollection } from './re-avatars
 const MAX_IMAGES = 4;
 type UploadFiles = Record<string, Express.Multer.File[]>;
 
-// GET /avatars/re — SSE stream, same event contract as the old
+// GET /avatars/re - SSE stream, same event contract as the old
 // thumbpinclient route it replaces:
-//   { type: "library", library: [...] }   — user's saved avatars (DB, sent first)
-//   { type: "avatar",  avatar: {...} }    — one shared RE-avatar collection at a time
+//   { type: "library", library: [...] }   - user's saved avatars (DB, sent first)
+//   { type: "avatar",  avatar: {...} }    - one shared RE-avatar collection at a time
 //   { type: "done" }
 //   { type: "error", message }
 export async function stream(req: AuthedRequest, res: Response): Promise<void> {
@@ -48,7 +48,7 @@ export async function stream(req: AuthedRequest, res: Response): Promise<void> {
   }
 }
 
-// POST /avatars/upload — multipart presenterImage_0..3 + name. Common
+// POST /avatars/upload - multipart presenterImage_0..3 + name. Common
 // upload endpoint every template's Presenter/Avatar tile posts to.
 export async function uploadCollection(req: AuthedRequest, res: Response): Promise<void> {
   const userId = req.user?._id?.toString();
@@ -64,7 +64,7 @@ export async function uploadCollection(req: AuthedRequest, res: Response): Promi
     if (f) picked.push({ buffer: f.buffer, mimetype: f.mimetype });
   }
 
-  const name = ((req.body?.name as string) || '').trim() || `Presenter — ${new Date().toLocaleDateString()}`;
+  const name = ((req.body?.name as string) || '').trim() || `Presenter - ${new Date().toLocaleDateString()}`;
 
   try {
     const result = await uploadAvatarCollection(userId, picked, name);

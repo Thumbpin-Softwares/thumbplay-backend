@@ -3,7 +3,7 @@ import { env } from '../../config/env';
 import { ELEVENLABS_VOICE_SETTINGS } from './elevenlabs-config';
 import { SARVAM_MODEL, SARVAM_LANGUAGE_CODES } from './sarvam-config';
 
-// Port of thumbpinclient/src/lib/voice-tts.js — identical across all three
+// Port of thumbpinclient/src/lib/voice-tts.js - identical across all three
 // reel pipelines in the source (not action-reel-specific, as earlier assumed).
 
 const SARVAM_PREFIX = 'sarvam:';
@@ -85,7 +85,7 @@ export interface SynthesizeVoiceInput {
   language: string;
 }
 
-// Routes to Sarvam or ElevenLabs based on the voiceId's provider prefix —
+// Routes to Sarvam or ElevenLabs based on the voiceId's provider prefix -
 // callers pick a voice from the combined catalog without needing to know
 // which provider it belongs to.
 export async function synthesizeVoice({ text, voiceId, language }: SynthesizeVoiceInput): Promise<SynthesizedVoice> {

@@ -1,4 +1,4 @@
-// Trimmed port of thumbpinclient/src/lib/remotion/Root.jsx — only the
+// Trimmed port of thumbpinclient/src/lib/remotion/Root.jsx - only the
 // "ActionReel" composition is registered here (the one shared by all three
 // reel pipelines in this backend). The source also registers SeedanceReel/
 // NewsAnchor/NewsAnchorBroll compositions, which belong to other pipelines
