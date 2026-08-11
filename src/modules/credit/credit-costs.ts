@@ -30,6 +30,9 @@ export const CREDIT_ACTIONS: Record<string, CreditActionConfig> = {
   // cost is a placeholder — priced dynamically per job from n8n's reported
   // `cost` field via computeCreditsFromRawCost() below, passed as a costOverride.
   model_tour_script_generation: { cost: 0, freeBucket: null, label: 'Model Tour Script Generation' },
+  // creative-ads: flat cost, charged up front — cheaper than a video (single
+  // image call vs six clips), so no free bucket and no per-job dynamic pricing.
+  creative_ad_generation: { cost: 2, freeBucket: null, label: 'Creative Ad Generation' },
 };
 
 // Generic USD-cost -> credits conversion, same margin/peg as captions but
