@@ -325,6 +325,9 @@ export async function regenerateChunkHandler(req: AuthedRequest, res: Response):
   const userId = req.user?._id?.toString();
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const chunkIndex = parseInt((Array.isArray(req.params.index) ? req.params.index[0] : req.params.index) || '', 10);
+  // Optional freeform note ("what should be different") from the review
+  // grid - see the comment on regenerateChunk's userNote param.
+  const note = typeof req.body?.note === 'string' ? req.body.note : undefined;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -377,7 +380,7 @@ export async function regenerateChunkHandler(req: AuthedRequest, res: Response):
   res.status(202).json({ jobId, chunkIndex });
 
   try {
-    const url = await regenerateChunk(jobId, userId, job.inputs, chunkIndex);
+    const url = await regenerateChunk(jobId, userId, job.inputs, chunkIndex, undefined, note);
     await ModelTourJob.updateOne({ jobId, 'chunks.index': chunkIndex }, { $set: { 'chunks.$.status': 'ready', 'chunks.$.url': url } });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Chunk regeneration failed';
@@ -502,17 +505,33 @@ export async function handleN8nWebhook(req: Request, res: Response): Promise<voi
     const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
     const r2VideoUrl = await uploadToR2(videoBuffer, key, 'video/mp4');
 
-    // Create Asset in the user's library
-    await Asset.create({
-      userId,
-      name: `Home Tour - ${job.propertyName}`,
-      url: r2VideoUrl,
-      type: 'video',
-      metadata: { source: 'model-tour', jobId },
-    });
-
-    // Mark job as done - the SSE polling loop in /generate will pick this up
+    // Mark job as done first - the video is genuinely ready at this point
+    // (already uploaded to R2), so a failure in the Asset-library save below
+    // must never turn a successful job into an 'error' one. Same reasoning
+    // as action-reel/comedy-reel's completion handlers, which isolate their
+    // own Asset.create in a try/catch for exactly this reason. Previously
+    // this ran before the status update and wasn't isolated, so a DB hiccup
+    // here would fall into the outer catch and flip an already-uploaded
+    // video's job to 'error' - the video would exist in R2 with nothing
+    // pointing at it. The SSE polling loop in /generate picks this status
+    // change up.
     await ModelTourJob.updateOne({ jobId }, { $set: { status: 'done', resultUrl: r2VideoUrl } });
+
+    // Create Asset in the user's library - isolated so a failure here can't
+    // undo the job completion above. Worst case the video is still reachable
+    // via ModelTourJob.resultUrl but doesn't show up in the Edit picker
+    // (asset.controller.ts's listVideos only reads Asset), recoverable later.
+    try {
+      await Asset.create({
+        userId,
+        name: `Home Tour - ${job.propertyName}`,
+        url: r2VideoUrl,
+        type: 'video',
+        metadata: { source: 'model-tour', jobId },
+      });
+    } catch (assetErr) {
+      console.error(`${LOG} Asset.create failed for job ${jobId} (video already saved to R2, job still marked done):`, assetErr);
+    }
 
     console.log(`${LOG} Job ${jobId} completed. Video saved to R2: ${r2VideoUrl}`);
     res.status(200).json({ success: true, videoUrl: r2VideoUrl });

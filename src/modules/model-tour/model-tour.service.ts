@@ -374,6 +374,14 @@ export async function regenerateChunk(
   script: Record<string, unknown>,
   chunkIndex: number,
   signal?: AbortSignal,
+  // Optional freeform note from the user reviewing the previous attempt
+  // ("she's not smiling enough", "camera's too fast") - passed through as-is
+  // to the regenerate-single-chunk workflow, which weaves it into the scene
+  // image and video-gen prompts for just this one attempt. Deliberately not
+  // written back into the stored storyboard/cinematic_direction - each retry
+  // carries whatever note is in the box that time, so notes from several
+  // attempts don't pile up and contradict each other.
+  userNote?: string,
 ): Promise<string> {
   const storyboard = script.storyboard;
   if (!Array.isArray(storyboard) || !storyboard[chunkIndex - 1]) {
@@ -390,7 +398,13 @@ export async function regenerateChunk(
   const res = await fetch(N8N_REGENERATE_CHUNK_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jobId, userId, storyboard: [storyboard[chunkIndex - 1]], body: script.body }),
+    body: JSON.stringify({
+      jobId,
+      userId,
+      storyboard: [storyboard[chunkIndex - 1]],
+      body: script.body,
+      ...(userNote?.trim() ? { userNote: userNote.trim() } : {}),
+    }),
     signal: combinedSignal,
   });
 
@@ -451,11 +465,24 @@ export async function combineChunksAndHandoff(
   // Fire-and-forget from here - the splitter workflow will call our
   // POST /api/v1/model-tour/webhook when it's done, which marks the job done.
   console.log(`[ModelTour] Forwarding to splitter webhook for job ${jobId}`);
+  // callbackUrl tells the splitter workflow which backend actually owns this
+  // job - it was previously hardcoded to prod in n8n, so a job started on
+  // staging would combine/voice-change successfully but the final "done"
+  // callback would 404 against prod (job doesn't exist there), leaving the
+  // job stuck in 'combining' until the watchdog above times it out. n8n's
+  // "Sending merged video to Backend..." node needs to read this field
+  // instead of a hardcoded URL for this to actually take effect.
   const gender = optionalString(script.gender);
   const splitterRes = await fetch(N8N_SPLITTER_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jobId, userId, videoUrl: mergedVideoUrl, ...(gender ? { gender } : {}) }),
+    body: JSON.stringify({
+      jobId,
+      userId,
+      videoUrl: mergedVideoUrl,
+      callbackUrl: `${env.backendPublicUrl}/api/v1/model-tour/webhook`,
+      ...(gender ? { gender } : {}),
+    }),
   });
 
   if (!splitterRes.ok) {
