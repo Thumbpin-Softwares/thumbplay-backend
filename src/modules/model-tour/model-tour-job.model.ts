@@ -6,8 +6,25 @@ import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 // an n8n workflow. The finalize step lets the user edit the n8n-generated
 // script before generation, so `inputs` holds that script verbatim (n8n owns
 // its shape - gender, master prompt, etc. are added by n8n, not us) rather
-// than a fixed set of fields. Status is effectively binary: running until it isn't.
-export type ModelTourJobStatus = 'running' | 'done' | 'error';
+// than a fixed set of fields.
+//
+// A video-generation job now pauses at 'chunks_ready' (all 6 scene clips
+// generated, not yet combined) so the frontend can show them for review -
+// see chunks. 'combining' covers the window from the user's Export click
+// through the sticher + splitter/voice-change handoff, same as 'running'
+// covered the whole pipeline before this existed.
+export type ModelTourJobStatus = 'running' | 'chunks_ready' | 'combining' | 'done' | 'error';
+export type ModelTourChunkStatus = 'ready' | 'regenerating' | 'error';
+
+// url is '' when a chunk has never successfully generated (failed on the
+// initial parallel-generation pass) - a chunk that fails on a later
+// regenerate attempt keeps its last-good url instead, so the user doesn't
+// lose the previous version just because a retry failed.
+export interface IModelTourChunk {
+  index: number;
+  url: string;
+  status: ModelTourChunkStatus;
+}
 
 export interface IModelTourJob extends Document {
   jobId: string;
@@ -15,6 +32,7 @@ export interface IModelTourJob extends Document {
   propertyName: string;
   status: ModelTourJobStatus;
   inputs: Record<string, unknown>;
+  chunks?: IModelTourChunk[];
   resultUrl?: string;
   result?: Record<string, unknown>;
   error?: string;
@@ -41,13 +59,21 @@ const ModelTourJobSchema = new Schema<IModelTourJob>(
     },
     status: {
       type: String,
-      enum: ['running', 'done', 'error'],
+      enum: ['running', 'chunks_ready', 'combining', 'done', 'error'],
       default: 'running',
     },
     inputs: {
       type: Schema.Types.Mixed,
       required: true,
     },
+    chunks: [
+      {
+        _id: false,
+        index: { type: Number, required: true },
+        url: { type: String, default: '' },
+        status: { type: String, enum: ['ready', 'regenerating', 'error'], default: 'ready' },
+      },
+    ],
     resultUrl: String,
     result: Schema.Types.Mixed,
     error: String,

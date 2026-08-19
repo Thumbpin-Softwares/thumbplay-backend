@@ -9,7 +9,9 @@ import { startSse } from '../reel/sse';
 import {
   uploadPropertyImage,
   generateModelTourScript,
-  triggerModelTourGeneration,
+  generateChunks,
+  regenerateChunk,
+  combineChunksAndHandoff,
   OmniHomeTourInput,
   PropertyType,
   ModelTourTemplateKey,
@@ -18,6 +20,7 @@ import { uploadToR2, buildUserKey } from '../reel/r2.service';
 
 const CREDIT_ACTION = 'real_estate_video';
 const SCRIPT_CREDIT_ACTION = 'model_tour_script_generation';
+const CHUNK_REGEN_CREDIT_ACTION = 'model_tour_chunk_regeneration';
 const LOG = '[ModelTour]';
 const MAX_IMAGES = 4;
 const PROPERTY_TYPES = new Set<PropertyType>(['residential', 'commercial', 'plotted']);
@@ -218,26 +221,16 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
 
     try {
       send({ type: 'generating', message: 'Sending to workflow for generation…' });
-
-      await triggerModelTourGeneration(jobId, userId, script, signal);
-
       send({ type: 'processing', message: 'Generating your home tour video…' });
 
-      let isDone = false;
-      while (!isDone && !signal.aborted) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+      const chunks = await generateChunks(jobId, userId, script, signal);
 
-        const job = await ModelTourJob.findOne({ jobId }).lean();
-        if (!job) break;
+      await ModelTourJob.updateOne({ jobId }, { $set: { status: 'chunks_ready', chunks } });
 
-        if (job.status === 'done') {
-          send({ type: 'done', resultUrl: job.resultUrl });
-          isDone = true;
-        } else if (job.status === 'error') {
-          throw new Error(job.error || 'External workflow failed');
-        }
-      }
-
+      // Stream ends here - the review/regenerate/combine cycle is user-paced
+      // and unbounded, unsuitable for a held SSE connection. The frontend
+      // switches to polling GET /model-tour/jobs/:jobId from here.
+      send({ type: 'chunks_ready', chunks });
       close();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed';
@@ -296,6 +289,136 @@ export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
   }
 
   res.status(200).json({ job });
+}
+
+// POST /model-tour/jobs/:jobId/chunks/:index/regenerate - regenerates one
+// scene clip, same underlying inputs as the original (job.inputs holds the
+// full script verbatim). Fire-and-forget, same pattern as
+// studio.controller.ts's generate: respond 202 immediately, run detached so
+// it survives the client disconnecting, poll GET /model-tour/jobs/:jobId for
+// completion.
+export async function regenerateChunkHandler(req: AuthedRequest, res: Response): Promise<void> {
+  const userId = req.user?._id?.toString();
+  const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
+  const chunkIndex = parseInt((Array.isArray(req.params.index) ? req.params.index[0] : req.params.index) || '', 10);
+
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  if (!jobId || !Number.isInteger(chunkIndex) || chunkIndex < 1) {
+    res.status(400).json({ error: 'Missing jobId or invalid chunk index' });
+    return;
+  }
+
+  const job = await ModelTourJob.findOne({ jobId, userId });
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+  if (job.status !== 'chunks_ready') {
+    res.status(409).json({ error: `Job is not ready for chunk regeneration (status: ${job.status})` });
+    return;
+  }
+  const chunk = job.chunks?.find((c) => c.index === chunkIndex);
+  if (!chunk) {
+    res.status(404).json({ error: `Chunk ${chunkIndex} not found on this job` });
+    return;
+  }
+  if (chunk.status === 'regenerating') {
+    res.status(409).json({ error: `Chunk ${chunkIndex} is already regenerating` });
+    return;
+  }
+
+  let debit: ConsumeDebit | undefined;
+  try {
+    const creditResult = await consumeCreditsForAction({
+      userId,
+      action: CHUNK_REGEN_CREDIT_ACTION,
+      metadata: { endpoint: '/api/v1/model-tour/jobs/:jobId/chunks/:index/regenerate', jobId, chunkIndex },
+    });
+    if (!creditResult.ok) {
+      res.status(creditResult.status).json(creditResult.payload);
+      return;
+    }
+    debit = creditResult.debit;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to charge for regeneration';
+    console.error(`${LOG} regenerateChunkHandler credit error:`, error);
+    res.status(500).json({ error: message });
+    return;
+  }
+
+  await ModelTourJob.updateOne({ jobId, 'chunks.index': chunkIndex }, { $set: { 'chunks.$.status': 'regenerating' } });
+  res.status(202).json({ jobId, chunkIndex });
+
+  try {
+    const url = await regenerateChunk(jobId, userId, job.inputs, chunkIndex);
+    await ModelTourJob.updateOne({ jobId, 'chunks.index': chunkIndex }, { $set: { 'chunks.$.status': 'ready', 'chunks.$.url': url } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Chunk regeneration failed';
+    console.error(`${LOG} regenerateChunk error (job ${jobId}, chunk ${chunkIndex}):`, err);
+    await ModelTourJob.updateOne({ jobId, 'chunks.index': chunkIndex }, { $set: { 'chunks.$.status': 'error' } });
+
+    await refundCreditsForAction({
+      userId,
+      action: CHUNK_REGEN_CREDIT_ACTION,
+      debit,
+      metadata: { endpoint: '/api/v1/model-tour/jobs/:jobId/chunks/:index/regenerate', jobId, chunkIndex, reason: 'regeneration_failed', message },
+    });
+  }
+}
+
+// POST /model-tour/jobs/:jobId/combine - combines the current set of 6 chunk
+// URLs (originals + any regenerated ones) and hands off to the
+// splitter/voice-change workflow exactly as the pipeline always did, just
+// now triggered by the user's Export click instead of automatically. No
+// credit refund on failure here - the expensive chunk-generation work (what
+// the original real_estate_video charge paid for) already succeeded by the
+// time this runs; only the final stitch/handoff failed.
+export async function combineHandler(req: AuthedRequest, res: Response): Promise<void> {
+  const userId = req.user?._id?.toString();
+  const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
+
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  if (!jobId) {
+    res.status(400).json({ error: 'Missing jobId' });
+    return;
+  }
+
+  const job = await ModelTourJob.findOne({ jobId, userId });
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+  if (job.status !== 'chunks_ready') {
+    res.status(409).json({ error: `Job is not ready to combine (status: ${job.status})` });
+    return;
+  }
+  if (job.chunks?.some((c) => c.status === 'regenerating')) {
+    res.status(409).json({ error: 'A chunk is still regenerating' });
+    return;
+  }
+  if (job.chunks?.some((c) => c.status === 'error')) {
+    res.status(409).json({ error: 'One or more chunks failed to generate - regenerate them before combining' });
+    return;
+  }
+
+  const chunkUrls = (job.chunks || []).slice().sort((a, b) => a.index - b.index).map((c) => c.url);
+
+  await ModelTourJob.updateOne({ jobId }, { $set: { status: 'combining' } });
+  res.status(202).json({ jobId });
+
+  try {
+    await combineChunksAndHandoff(jobId, userId, job.inputs, chunkUrls);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Combine failed';
+    console.error(`${LOG} combine error (job ${jobId}):`, err);
+    await ModelTourJob.updateOne({ jobId }, { $set: { status: 'error', error: message } });
+  }
 }
 
 // GET /model-tour/generations - the user's own generations, newest first,

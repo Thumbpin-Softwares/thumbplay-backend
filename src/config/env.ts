@@ -114,4 +114,22 @@ export const env = {
   razorpayKeyId: optional('RAZORPAY_KEY_ID', '').trim(),
   razorpayKeySecret: optional('RAZORPAY_KEY_SECRET', '').trim(),
   razorpayWebhookSecret: optional('RAZORPAY_WEBHOOK_SECRET', '').trim(),
+
+  // ---------------------------------------------------------------------------
+  // OpenAI - the one direct (non-fal.ai, non-n8n) model call in this backend.
+  // agent-chat needs real multi-turn tool-calling + token streaming for its
+  // conversational storyboard/scene-generation flow; fal.ai's openrouter/router
+  // wrapper (used everywhere else for text - see reel/llm.service.ts) is a
+  // single-shot prompt/system_prompt completion endpoint with no messages
+  // array, no tools, no streaming, so it can't do this job.
+  //
+  // Optional, same graceful-degradation shape as the Razorpay keys above: if
+  // unset, agent-chat.controller.ts's conversation-start endpoint returns a
+  // clean 503 instead of the whole backend failing to boot.
+  // ---------------------------------------------------------------------------
+  openaiApiKey: optional('OPENAI_API_KEY', '').trim(),
+  // Confirm/update against OpenAI's current model lineup when setting the key -
+  // this default is a reasonable-as-of-writing tool-calling+streaming model,
+  // not a verified-current catalog pick.
+  openaiModel: optional('OPENAI_MODEL', 'gpt-4o').trim(),
 } as const;

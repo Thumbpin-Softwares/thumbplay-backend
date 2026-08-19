@@ -36,6 +36,10 @@ export const CREDIT_ACTIONS: Record<string, CreditActionConfig> = {
   // studio: single direct-to-fal Seedance call (image-to-video, no TTS/split/
   // combine), shares the 'video' free bucket with real_estate_video/action_reel_video.
   studio_drone_flythrough: { cost: 3, freeBucket: 'video', label: 'Studio Drone Flythrough' },
+  // model-tour: regenerating one of the 6 review chunks - real extra fal.ai
+  // spend (image + transliteration + LLM + video), no free bucket since the
+  // original real_estate_video charge already covers the first 2 free videos.
+  model_tour_chunk_regeneration: { cost: 1, freeBucket: null, label: 'Chunk Regeneration' },
 };
 
 // Generic USD-cost -> credits conversion, same margin/peg as captions but

@@ -1,6 +1,15 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadProperty, getScript, generate, getJob, listGenerations, handleN8nWebhook } from './model-tour.controller';
+import {
+  uploadProperty,
+  getScript,
+  generate,
+  getJob,
+  listGenerations,
+  handleN8nWebhook,
+  regenerateChunkHandler,
+  combineHandler,
+} from './model-tour.controller';
 import { requireAuth } from '../auth/auth.middleware';
 
 const router: Router = Router();
@@ -165,6 +174,71 @@ router.post('/generate', requireAuth, generate);
  *         description: Job not found
  */
 router.get('/jobs/:jobId', requireAuth, getJob);
+
+/**
+ * @openapi
+ * /model-tour/jobs/{jobId}/chunks/{index}/regenerate:
+ *   post:
+ *     summary: Regenerate one scene clip (1-based index) of a chunks_ready job
+ *     description: >
+ *       Responds 202 immediately and runs detached from the request (same pattern as
+ *       studio.controller.ts's generate) since a single chunk regen can take 1-3 minutes.
+ *       Poll GET /model-tour/jobs/{jobId} for the chunk's updated status/url. Charges the
+ *       `model_tour_chunk_regeneration` credit action up front, refunded on failure.
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: index
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       202:
+ *         description: "{ jobId, chunkIndex }"
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: Job or chunk not found
+ *       409:
+ *         description: Job not in chunks_ready status, or chunk already regenerating
+ *       402:
+ *         description: Insufficient credits
+ */
+router.post('/jobs/:jobId/chunks/:index/regenerate', requireAuth, regenerateChunkHandler);
+
+/**
+ * @openapi
+ * /model-tour/jobs/{jobId}/combine:
+ *   post:
+ *     summary: Combine the current set of 6 chunks and hand off to the splitter/voice-change workflow
+ *     description: >
+ *       Responds 202 immediately and runs detached from the request. The existing
+ *       POST /model-tour/webhook callback marks the job done once the splitter workflow finishes,
+ *       same as before this feature existed.
+ *     tags: [Model Tour]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       202:
+ *         description: "{ jobId }"
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: Job not found
+ *       409:
+ *         description: Job not in chunks_ready status, or a chunk is still regenerating
+ */
+router.post('/jobs/:jobId/combine', requireAuth, combineHandler);
 
 /**
  * @openapi
