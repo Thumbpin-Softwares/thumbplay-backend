@@ -324,14 +324,32 @@ export async function generateChunks(
     throw new Error('Script has no storyboard scenes');
   }
 
-  console.log(`[ModelTour] Generating ${storyboard.length} chunk(s) in parallel for job ${jobId}`);
-  const results = await Promise.allSettled(storyboard.map((_, i) => regenerateChunk(jobId, userId, script, i + 1, signal)));
+  // See MODEL_TOUR_TEST_CHUNK_LIMIT in env.ts - only meant to be set on
+  // staging. Scenes past the limit are left unset (status 'error', empty
+  // url) rather than generated, so they render as the frontend's existing
+  // per-chunk "Retry" tile - each is still individually generate-able from
+  // there, one at a time, if you want to check the rest.
+  const limit = env.modelTourTestChunkLimit;
+  const generateCount = limit > 0 && limit < storyboard.length ? limit : storyboard.length;
+  if (generateCount < storyboard.length) {
+    console.log(
+      `[ModelTour] MODEL_TOUR_TEST_CHUNK_LIMIT=${limit} - only generating ${generateCount}/${storyboard.length} chunks for job ${jobId} (not real failures, see env.ts)`,
+    );
+  }
 
-  const chunks: GeneratedChunk[] = results.map((result, i) => {
-    if (result.status === 'fulfilled') {
+  console.log(`[ModelTour] Generating ${generateCount} chunk(s) in parallel for job ${jobId}`);
+  const results = await Promise.allSettled(
+    storyboard.slice(0, generateCount).map((_, i) => regenerateChunk(jobId, userId, script, i + 1, signal)),
+  );
+
+  const chunks: GeneratedChunk[] = storyboard.map((_, i) => {
+    const result = i < generateCount ? results[i] : undefined;
+    if (result?.status === 'fulfilled') {
       return { index: i + 1, url: result.value, status: 'ready' };
     }
-    console.error(`[ModelTour] Chunk ${i + 1} generation failed for job ${jobId}:`, result.reason);
+    if (result?.status === 'rejected') {
+      console.error(`[ModelTour] Chunk ${i + 1} generation failed for job ${jobId}:`, result.reason);
+    }
     return { index: i + 1, url: '', status: 'error' };
   });
 

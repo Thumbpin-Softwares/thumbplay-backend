@@ -132,4 +132,16 @@ export const env = {
   // this default is a reasonable-as-of-writing tool-calling+streaming model,
   // not a verified-current catalog pick.
   openaiModel: optional('OPENAI_MODEL', 'gpt-4o').trim(),
+
+  // ---------------------------------------------------------------------------
+  // Dev-only cost guard: each model-tour scene is a separately-billed fal.ai
+  // video generation call, so testing a storyboard/prompt change end-to-end
+  // (frontend -> backend -> n8n) normally means paying for all 6. Set this on
+  // staging to cap generateChunks() at the first N scenes - the rest are left
+  // as regenerate-able placeholders (same tile the user already sees for a
+  // failed chunk), one click each if you want to check them individually.
+  // Unset in production - the customer-facing flow is completely unaffected
+  // either way, this only changes how many scenes generateChunks() renders.
+  // ---------------------------------------------------------------------------
+  modelTourTestChunkLimit: Number(optional('MODEL_TOUR_TEST_CHUNK_LIMIT', '0')) || 0,
 } as const;
