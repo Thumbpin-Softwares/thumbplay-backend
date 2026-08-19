@@ -12,6 +12,8 @@ import {
   generateChunks,
   regenerateChunk,
   combineChunksAndHandoff,
+  reconcileStuckCombine,
+  enforceSceneDurations,
   OmniHomeTourInput,
   PropertyType,
   ModelTourTemplateKey,
@@ -195,6 +197,15 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     return;
   }
 
+  // Re-run the same duration/length enforcement applied at script-generation
+  // time (see enforceSceneDurations in model-tour.service.ts) here too, since
+  // the finalize step lets the user edit voiceover text after that point.
+  // This script is what actually gets persisted to job.inputs and used for
+  // every chunk (re)generation, so it's the last point a lengthened edit
+  // could reintroduce a clipped scene.
+  const tierClass = typeof script.body?.tier_class === 'string' ? script.body.tier_class : undefined;
+  if (Array.isArray(script.storyboard)) enforceSceneDurations(script.storyboard, tierClass);
+
   const propertyName = ((script.property_name ?? script.propertyName ?? '') as string).toString().trim() || 'Untitled Property';
 
   const existingJob = await ModelTourJob.findOne({ jobId }).lean();
@@ -215,7 +226,14 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     }
     debit = creditResult.debit;
 
-    await ModelTourJob.create({ jobId, userId, propertyName, status: 'running', inputs: script });
+    await ModelTourJob.create({
+      jobId,
+      userId,
+      propertyName,
+      status: 'running',
+      inputs: script,
+      creditDebit: debit as unknown as Record<string, unknown>,
+    });
 
     const { send, close, signal } = startSse(req, res);
 
@@ -281,6 +299,12 @@ export async function getJob(req: AuthedRequest, res: Response): Promise<void> {
     res.status(400).json({ error: 'Missing jobId' });
     return;
   }
+
+  // Lazy watchdog: this endpoint is what the frontend polls every 3s while a
+  // job is in flight, so it's the natural place to catch a job that's been
+  // sitting in 'combining' too long (e.g. the splitter workflow errored
+  // internally after accepting the handoff) - see reconcileStuckCombine.
+  await reconcileStuckCombine(jobId);
 
   const job = await ModelTourJob.findOne({ jobId, userId }).lean();
   if (!job) {

@@ -33,6 +33,11 @@ export interface IModelTourJob extends Document {
   status: ModelTourJobStatus;
   inputs: Record<string, unknown>;
   chunks?: IModelTourChunk[];
+  // The ConsumeDebit returned when the real_estate_video credit charge was
+  // made for this job (see credit.service.ts). Stored so a stuck-job
+  // watchdog can refund it later without needing the original in-memory
+  // debit object, which doesn't survive past the request that created it.
+  creditDebit?: Record<string, unknown>;
   resultUrl?: string;
   result?: Record<string, unknown>;
   error?: string;
@@ -74,6 +79,7 @@ const ModelTourJobSchema = new Schema<IModelTourJob>(
         status: { type: String, enum: ['ready', 'regenerating', 'error'], default: 'ready' },
       },
     ],
+    creditDebit: Schema.Types.Mixed,
     resultUrl: String,
     result: Schema.Types.Mixed,
     error: String,

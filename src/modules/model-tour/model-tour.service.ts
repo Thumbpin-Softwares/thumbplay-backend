@@ -1,6 +1,8 @@
 import { uploadToR2, buildUserKey, extFromMime } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
 import { env } from '../../config/env';
+import { ModelTourJob } from './model-tour-job.model';
+import { refundCreditsForAction, ConsumeDebit } from '../credit/credit.service';
 
 // n8n video rendering takes 2-4 minutes. Node's built-in fetch uses undici, which
 // has a default 30-second headersTimeout. We set undici's global dispatcher timeout
@@ -127,6 +129,101 @@ const N8N_COMBINE_WEBHOOK_URL = 'https://wrk-413d.apps.excloud.co.in/webhook/6cb
 // video URL back to our backend at POST /api/v1/model-tour/webhook.
 const N8N_SPLITTER_WEBHOOK_URL = env.n8nSplitterWebhookUrl;
 
+// The storyboard LLM (the "master prompt residential/commercial/plotted" node
+// in n8n) computes its own duration_seconds from a self-counted word count and
+// a flat 2.5-words/sec assumption. Both drift in practice: LLMs are unreliable
+// at literally counting their own words while also juggling a long, detailed
+// generation task, and a flat rate ignores that slower tiers (ultra-luxury's
+// prompt explicitly asks for "calm, slow, elegant" delivery) genuinely speak
+// fewer words/sec than an energetic premium-tier scene. The result is
+// narration that doesn't fit the video's fixed length - the avatar's
+// voiceover gets cut off before it finishes speaking.
+//
+// enforceSceneDurations() recomputes duration_seconds here, deterministically,
+// from the actual script text - and if a scene's script is too long to fit
+// even the max clamp, trims it to the last full sentence that does fit, so
+// the voiceover always finishes before the clip ends rather than getting cut
+// off mid-word. Called both right after script generation below (so the
+// finalize-step UI already shows accurate numbers) and again in the /generate
+// controller right before a job's inputs are persisted (so a user's own edits
+// during finalize can't reintroduce the same overrun).
+// tier_class arrives as the frontend's human-readable option label (e.g.
+// "Ultra Luxury", "IT Parks & Corporate Towers"), not a slug, and casing/
+// spacing isn't guaranteed - so this matches by keyword rather than exact
+// key. Determines the TARGET pace used for the duration_seconds calculation
+// (an ideal, tier-appropriate delivery speed), separate from the faster,
+// more permissive ceiling used to decide whether trimming is unavoidable
+// (see SCENE_TRIM_WORDS_PER_SECOND below) - a scene shouldn't lose content
+// just because it's a bit brisker than that tier's ideal pace.
+function resolveWordsPerSecond(tierClass?: string): number {
+  const normalized = (tierClass ?? '').toLowerCase();
+  if (normalized.includes('ultra') && normalized.includes('luxury')) return 2.0;
+  if (normalized.includes('luxury') || normalized.includes('hospitality')) return 2.2;
+  if (normalized.includes('afford') || normalized.includes('standard')) return 2.6;
+  if (normalized.includes('agricultural') || normalized.includes('farmhouse')) return 2.2;
+  return 2.4;
+}
+
+// Fast-but-still-natural spoken pace (well above any tier's ideal delivery
+// speed) used only to decide the point past which even a brisk reading
+// can't fit the clip and trimming becomes unavoidable. Keeping this
+// deliberately more permissive than resolveWordsPerSecond's tier paces means
+// a scene that's merely a bit over a tier's "ideal" length just gets a
+// longer (up to the 10s cap) duration instead of losing content - trimming
+// only kicks in for scripts no natural reading speed could fit.
+const SCENE_TRIM_WORDS_PER_SECOND = 3.3;
+const SCENE_DURATION_PAD_SECONDS = 1.5;
+const SCENE_MIN_DURATION_SECONDS = 6;
+const SCENE_MAX_DURATION_SECONDS = 10;
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+// Trims to the last natural boundary at or before maxWords - sentence ends
+// first, then comma/semicolon/colon clause breaks if there's only one
+// (long) sentence - falling back to a hard word cut only if the text has no
+// boundary before the limit at all. Boundary characters include the
+// Devanagari danda (।/॥) since scripts can be written in Hindi.
+function trimToWordBudget(text: string, maxWords: number): string {
+  const trimmed = text.trim();
+  if (countWords(trimmed) <= maxWords) return trimmed;
+
+  for (const boundaryRegex of [/[^.!?।॥]+[.!?।॥]*/g, /[^,;:]+[,;:]*/g]) {
+    const parts = trimmed.match(boundaryRegex);
+    if (!parts || parts.length < 2) continue;
+
+    let result = '';
+    let words = 0;
+    for (const part of parts) {
+      const partWords = countWords(part);
+      if (words + partWords > maxWords) break;
+      result += part;
+      words += partWords;
+    }
+    if (result.trim()) return result.trim();
+  }
+
+  return trimmed.split(/\s+/).slice(0, maxWords).join(' ');
+}
+
+export function enforceSceneDurations(storyboard: unknown[], tierClass?: string): void {
+  const targetWps = resolveWordsPerSecond(tierClass);
+  const maxWords = Math.floor((SCENE_MAX_DURATION_SECONDS - SCENE_DURATION_PAD_SECONDS) * SCENE_TRIM_WORDS_PER_SECOND);
+
+  for (const entry of storyboard) {
+    if (!entry || typeof entry !== 'object') continue;
+    const scene = entry as Record<string, unknown>;
+    if (typeof scene.voiceover_audio_script !== 'string' || !scene.voiceover_audio_script.trim()) continue;
+
+    const script = trimToWordBudget(scene.voiceover_audio_script, maxWords);
+    scene.voiceover_audio_script = script;
+
+    const duration = Math.round(countWords(script) / targetWps + SCENE_DURATION_PAD_SECONDS);
+    scene.duration_seconds = Math.min(SCENE_MAX_DURATION_SECONDS, Math.max(SCENE_MIN_DURATION_SECONDS, duration));
+  }
+}
+
 export async function generateModelTourScript(
   input: OmniHomeTourInput,
   signal?: AbortSignal,
@@ -198,7 +295,10 @@ export async function generateModelTourScript(
     throw new Error('Script workflow returned an invalid response');
   }
 
-  return script as Record<string, unknown>;
+  const result = script as Record<string, unknown>;
+  if (Array.isArray(result.storyboard)) enforceSceneDurations(result.storyboard, input.tierClass);
+
+  return result;
 }
 
 export interface GeneratedChunk {
@@ -347,4 +447,47 @@ export async function combineChunksAndHandoff(
   }
 
   console.log(`[ModelTour] Job ${jobId} handed off to splitter - waiting for backend webhook callback`);
+}
+
+const CREDIT_ACTION = 'real_estate_video';
+
+// The splitter/voice-change handoff above is fire-and-forget: we only await
+// n8n *accepting* the webhook, not the splitter workflow actually finishing.
+// If that workflow errors internally after accepting (e.g. a bad ElevenLabs
+// key) it never calls back to POST /model-tour/webhook, so nothing would
+// otherwise flip the job out of 'combining' - it sits charged and stuck
+// forever. This is the one place that recovers from that.
+//
+// Atomic status-guarded update: only the caller that actually flips
+// combining -> error proceeds to refund, so a race between the lazy
+// watchdog (reconcileStuckCombine, called from getJob's poll path) and
+// executeCombineVideo's own timeout (agent-chat) can never double-refund
+// the same job.
+export async function failStuckCombine(jobId: string, message: string): Promise<void> {
+  const updated = await ModelTourJob.findOneAndUpdate({ jobId, status: 'combining' }, { $set: { status: 'error', error: message } });
+  if (!updated) return; // already resolved (done/error) by the webhook callback or another caller
+
+  if (updated.creditDebit) {
+    await refundCreditsForAction({
+      userId: updated.userId.toString(),
+      action: CREDIT_ACTION,
+      debit: updated.creditDebit as unknown as ConsumeDebit,
+      metadata: { jobId, reason: 'combine_timed_out' },
+    });
+  }
+}
+
+// How long a job can sit in 'combining' before we treat the splitter as
+// hung rather than just slow - generous relative to typical completion time.
+const COMBINE_STUCK_THRESHOLD_MS = 10 * 60 * 1000;
+
+// Lazy watchdog - called from the job-status read path (GET /model-tour/jobs/:jobId,
+// which the frontend already polls every 3s while a job is in flight) rather
+// than a background cron, since nothing in this backend runs one today and
+// the existing poll loop already provides the "check back periodically" cadence.
+export async function reconcileStuckCombine(jobId: string): Promise<void> {
+  const job = await ModelTourJob.findOne({ jobId }).select('status updatedAt').lean();
+  if (!job || job.status !== 'combining') return;
+  if (Date.now() - new Date(job.updatedAt).getTime() < COMBINE_STUCK_THRESHOLD_MS) return;
+  await failStuckCombine(jobId, 'Timed out waiting for the final video - the voice-change/splitter step did not complete.');
 }

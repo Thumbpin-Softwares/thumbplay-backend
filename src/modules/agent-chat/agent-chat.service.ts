@@ -7,6 +7,7 @@ import {
   generateChunks,
   regenerateChunk,
   combineChunksAndHandoff,
+  failStuckCombine,
   OmniHomeTourInput,
   PropertyType,
 } from '../model-tour/model-tour.service';
@@ -155,7 +156,14 @@ async function executeGenerateVideoScenes(conversation: IAgentChatConversation, 
     debit = creditResult.debit;
 
     const propertyName = ((script.property_name ?? script.propertyName ?? 'Untitled Property') as string).toString();
-    await ModelTourJob.create({ jobId, userId, propertyName, status: 'running', inputs: script });
+    await ModelTourJob.create({
+      jobId,
+      userId,
+      propertyName,
+      status: 'running',
+      inputs: script,
+      creditDebit: debit as unknown as Record<string, unknown>,
+    });
 
     const chunks = await generateChunks(jobId, userId, script);
     await ModelTourJob.updateOne({ jobId }, { $set: { status: 'chunks_ready', chunks } });
@@ -271,6 +279,12 @@ async function executeCombineVideo(conversation: IAgentChatConversation, userId:
     }
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
+
+  // Don't just report the timeout back to the chat and leave the job stuck
+  // at 'combining' in the DB - persist the failure and refund the same way
+  // the lazy watchdog on GET /model-tour/jobs/:jobId would, so this doesn't
+  // depend on the wizard's poll loop ever touching this job again.
+  await failStuckCombine(jobId, 'Timed out waiting for the final video - the voice-change/splitter step did not complete.');
   return { ok: false, error: 'Timed out waiting for the final video.' };
 }
 
