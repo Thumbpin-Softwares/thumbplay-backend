@@ -4,15 +4,34 @@ import { AuthedRequest } from '../auth/auth.types';
 import { consumeCreditsForAction } from '../credit/credit.service';
 import { StudioJob, StudioWorkType } from './studio-job.model';
 import { runDroneFlythrough } from './studio.service';
+import { BrandingFields } from '../render/branding.service';
 
-const CREDIT_ACTION = 'studio_drone_flythrough';
 const LOG = '[Studio]';
 const MAX_IMAGES = 4;
 const KNOWN_WORK_TYPES: StudioWorkType[] = ['drone-flythrough'];
 
+// Per-work-type credit action + which generation function runs it - keeps
+// generate() itself from needing a workType switch statement as more work
+// types get added.
+const WORK_TYPE_CONFIG: Record<
+  StudioWorkType,
+  { creditAction: string; run: typeof runDroneFlythrough }
+> = {
+  'drone-flythrough': { creditAction: 'studio_drone_flythrough', run: runDroneFlythrough },
+};
+
+function parseBranding(body: Record<string, unknown>): BrandingFields {
+  return {
+    logoUrl: typeof body.brandingLogoUrl === 'string' ? body.brandingLogoUrl : undefined,
+    agencyName: typeof body.brandingAgencyName === 'string' ? body.brandingAgencyName : undefined,
+    contactInfo: typeof body.brandingContactInfo === 'string' ? body.brandingContactInfo : undefined,
+    primaryColor: typeof body.brandingPrimaryColor === 'string' ? body.brandingPrimaryColor : undefined,
+  };
+}
+
 function parseStudioInput(
   body: Record<string, unknown>,
-): { workType: StudioWorkType; prompt: string; imageUrls: string[] } | { error: string } {
+): { workType: StudioWorkType; prompt: string; imageUrls: string[]; branding: BrandingFields } | { error: string } {
   const workType = ((body.workType as string) || '').toString().trim();
   const prompt = ((body.prompt as string) || '').toString().trim();
   const imageUrls: string[] = Array.isArray(body.imageUrls)
@@ -29,7 +48,7 @@ function parseStudioInput(
     return { error: `imageUrls must have between 1 and ${MAX_IMAGES} URLs` };
   }
 
-  return { workType: workType as StudioWorkType, prompt, imageUrls };
+  return { workType: workType as StudioWorkType, prompt, imageUrls, branding: parseBranding(body) };
 }
 
 // POST /studio/generate - unlike creative-ads' SSE stream, this responds as
@@ -49,13 +68,14 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
     res.status(400).json({ error: parsed.error });
     return;
   }
-  const { workType, prompt, imageUrls } = parsed;
+  const { workType, prompt, imageUrls, branding } = parsed;
   const jobId = crypto.randomUUID();
+  const { creditAction, run } = WORK_TYPE_CONFIG[workType];
 
   try {
     const creditResult = await consumeCreditsForAction({
       userId,
-      action: CREDIT_ACTION,
+      action: creditAction,
       metadata: { endpoint: '/api/v1/studio/generate', workType },
     });
     if (!creditResult.ok) {
@@ -67,10 +87,10 @@ export async function generate(req: AuthedRequest, res: Response): Promise<void>
 
     res.status(202).json({ jobId });
 
-    // Fire-and-forget - errors are handled inside runDroneFlythrough itself
+    // Fire-and-forget - errors are handled inside the run function itself
     // (job status + credit refund), so nothing here becomes an unhandled
     // rejection.
-    void runDroneFlythrough(jobId, userId, prompt, imageUrls, creditResult.debit);
+    void run(jobId, userId, prompt, imageUrls, creditResult.debit, branding);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to start generation';
     console.error(`${LOG} Outer error:`, error);

@@ -7,6 +7,7 @@ import { AuthedRequest } from '../auth/auth.types';
 import { uploadToR2, buildUserKey } from '../reel/r2.service';
 import { Asset } from '../asset/asset.model';
 import { getBundle, renderMediaWithRetry } from './render.service';
+import { applyBranding, hasBranding } from './branding.service';
 
 // Matches @remotion/renderer's x264Preset union.
 export type X264Preset =
@@ -111,11 +112,33 @@ export function createRenderRemotionHandler(config: RenderPipelineConfig) {
       }
 
       send({ type: 'status', message: 'Uploading…' });
-      const videoBuf = readFileSync(outputPath);
+      let videoBuf: Buffer = readFileSync(outputPath);
       try {
         unlinkSync(outputPath);
       } catch {
         // ignore
+      }
+
+      // Branding is per-generation, not per-account (see branding.service.ts) -
+      // these fields ride along on the same request as everything else this
+      // export needed. Silently skipped if none were sent, no error, matches
+      // this codebase's style for optional features.
+      const branding = {
+        logoUrl: typeof inputProps.brandingLogoUrl === 'string' ? inputProps.brandingLogoUrl : undefined,
+        agencyName: typeof inputProps.brandingAgencyName === 'string' ? inputProps.brandingAgencyName : undefined,
+        contactInfo: typeof inputProps.brandingContactInfo === 'string' ? inputProps.brandingContactInfo : undefined,
+        primaryColor: typeof inputProps.brandingPrimaryColor === 'string' ? inputProps.brandingPrimaryColor : undefined,
+      };
+      if (hasBranding(branding)) {
+        try {
+          send({ type: 'status', message: 'Adding intro/outro…' });
+          const mainKey = buildUserKey(userId, 'videos', 'mp4', `${config.r2KeyPrefix}-main-${Date.now()}`);
+          const mainUrl = await uploadToR2(videoBuf, mainKey, 'video/mp4');
+          const branded = await applyBranding(userId, mainUrl, branding);
+          if (branded) videoBuf = branded;
+        } catch (err) {
+          console.error(`[${config.logLabel} render-remotion] Branding concat failed, using unbranded video:`, err);
+        }
       }
 
       const key = buildUserKey(userId, 'videos', 'mp4', `${config.r2KeyPrefix}-${Date.now()}`);

@@ -1,6 +1,10 @@
 import { bundle } from '@remotion/bundler';
-import { renderMedia } from '@remotion/renderer';
+import { renderMedia, selectComposition } from '@remotion/renderer';
+import { readFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import crypto from 'node:crypto';
+import type { BrandBumperProps } from './remotion/BrandBumper';
 
 // Port of the getBundle() caching pattern duplicated across all three
 // pipelines' render-remotion routes in the source (each with its own
@@ -44,4 +48,30 @@ export async function renderMediaWithRetry(
     }
   }
   throw lastErr;
+}
+
+// Renders the "BrandBumper" composition (see remotion/BrandBumper.tsx) to a
+// standalone mp4 buffer, from this generation's own branding fields (see
+// branding.service.ts's applyBranding, the only caller - branding is
+// per-generation, not cached per-account).
+export async function renderBrandBumper(props: BrandBumperProps): Promise<Buffer> {
+  const inputProps = props as unknown as Record<string, unknown>;
+  const serveUrl = await getBundle();
+  const composition = await selectComposition({ serveUrl, id: 'BrandBumper', inputProps });
+  const outputPath = join(tmpdir(), `brand-bumper-${crypto.randomUUID()}.mp4`);
+
+  try {
+    await renderMedia({
+      composition,
+      serveUrl,
+      codec: 'h264',
+      outputLocation: outputPath,
+      inputProps,
+      chromiumOptions: { disableWebSecurity: true },
+      x264Preset: 'fast',
+    });
+    return await readFile(outputPath);
+  } finally {
+    await unlink(outputPath).catch(() => {});
+  }
 }

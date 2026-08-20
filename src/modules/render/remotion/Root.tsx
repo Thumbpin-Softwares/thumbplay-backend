@@ -6,10 +6,20 @@
 import { Composition } from 'remotion';
 import { ActionReelComposition, calcActionReelDurationInFrames, ActionReelCompositionProps } from './ActionReelComposition';
 import { calcActionReelBaseDurationInFrames } from './duration';
+import { BrandBumper, calcBrandBumperDurationInFrames } from './BrandBumper';
 
 export const RemotionRoot = () => {
   return (
     <>
+      <Composition
+        id="BrandBumper"
+        component={BrandBumper}
+        fps={30}
+        width={1080}
+        height={1920}
+        durationInFrames={calcBrandBumperDurationInFrames()}
+        defaultProps={{ logoUrl: '', agencyName: '', contactInfo: '', primaryColor: '#0a0a0a' }}
+      />
       <Composition
         id="ActionReel"
         component={ActionReelComposition}

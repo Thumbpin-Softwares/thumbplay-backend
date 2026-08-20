@@ -19,6 +19,7 @@ import {
   ModelTourTemplateKey,
 } from './model-tour.service';
 import { uploadToR2, buildUserKey } from '../reel/r2.service';
+import { applyBranding, hasBranding } from '../render/branding.service';
 
 const CREDIT_ACTION = 'real_estate_video';
 const SCRIPT_CREDIT_ACTION = 'model_tour_script_generation';
@@ -499,7 +500,27 @@ export async function handleN8nWebhook(req: Request, res: Response): Promise<voi
     if (!videoResponse.ok) {
       throw new Error(`Failed to download video from URL: HTTP ${videoResponse.status}`);
     }
-    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    let videoBuffer: Buffer = Buffer.from(await videoResponse.arrayBuffer());
+
+    // Branding is per-generation (see branding.service.ts), so it rides
+    // along on job.inputs (the script the user submitted at /generate) -
+    // silently skipped if none was entered for this job, no error, matches
+    // this codebase's style for optional features.
+    const inputs = job.inputs as Record<string, unknown>;
+    const branding = {
+      logoUrl: typeof inputs.brandingLogoUrl === 'string' ? inputs.brandingLogoUrl : undefined,
+      agencyName: typeof inputs.brandingAgencyName === 'string' ? inputs.brandingAgencyName : undefined,
+      contactInfo: typeof inputs.brandingContactInfo === 'string' ? inputs.brandingContactInfo : undefined,
+      primaryColor: typeof inputs.brandingPrimaryColor === 'string' ? inputs.brandingPrimaryColor : undefined,
+    };
+    if (hasBranding(branding)) {
+      try {
+        const branded = await applyBranding(userId, videoUrl, branding);
+        if (branded) videoBuffer = branded;
+      } catch (err) {
+        console.error(`${LOG} Branding concat failed for job ${jobId}, using unbranded video:`, err);
+      }
+    }
 
     // Upload to R2
     const key = buildUserKey(userId, 'videos', 'mp4', 'model-tour');
